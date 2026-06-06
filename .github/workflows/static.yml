@@ -1,0 +1,56 @@
+# Baut das Dashboard aus Notion und deployt es zu GitHub Pages
+name: Deploy static content to Pages
+
+on:
+  # Bei Push auf den Hauptbranch
+  push:
+    branches: ["main"]
+  # Regelmaessig automatisch (06:00 und 18:00 UTC). Cron ist immer UTC.
+  schedule:
+    - cron: "0 6,18 * * *"
+  # Manuell ueber den "Run workflow"-Knopf im Actions-Tab
+  workflow_dispatch: {}
+
+# Rechte fuer das Pages-Deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Nur ein Deployment gleichzeitig, laufende nicht abbrechen
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dashboard aus Notion bauen
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: python build_dashboard.py
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Gesamtes Repository hochladen (enthaelt die frisch gebaute index.html)
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
