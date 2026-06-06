@@ -5,9 +5,9 @@ on:
   # Bei Push auf den Hauptbranch
   push:
     branches: ["main"]
-  # Regelmaessig automatisch (19:50 UTC). Cron ist immer UTC.
+  # Regelmaessig automatisch (18:50 UTC). Cron ist immer UTC.
   schedule:
-    - cron: "50 19 * * *"
+    - cron: "50 18 * * *"
   # Manuell ueber den "Run workflow"-Knopf im Actions-Tab
   workflow_dispatch: {}
 
