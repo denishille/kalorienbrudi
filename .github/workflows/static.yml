@@ -7,7 +7,7 @@ on:
     branches: ["main"]
   # Regelmaessig automatisch (06:00 und 18:00 UTC). Cron ist immer UTC.
   schedule:
-    - cron: "0 6,18 * * *"
+    - cron: "50 19 * * *"
   # Manuell ueber den "Run workflow"-Knopf im Actions-Tab
   workflow_dispatch: {}
 
