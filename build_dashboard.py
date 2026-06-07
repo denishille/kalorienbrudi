@@ -251,6 +251,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .metric-toggle button{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--muted);background:var(--panel2);
     border:1px solid var(--border);padding:7px 12px;border-radius:9px;cursor:pointer;transition:.2s;white-space:nowrap}
   .metric-toggle button.active{background:var(--accent);color:#15130F;border-color:var(--accent);font-weight:500}
+  .chart-controls{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+  .seg button{min-width:30px;text-align:center;font-weight:500}
   .weekly{display:flex;flex-direction:column}
   .plot{position:relative;height:185px;display:flex;align-items:flex-end;justify-content:space-around;gap:18px;overflow:visible}
   .refline{position:absolute;left:0;right:0;border-top:1.5px dashed var(--green);z-index:4;pointer-events:none}
@@ -275,7 +277,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <div class="wrap">
   <header>
     <div class="brand">
-      <span class="kicker">Kalorienbrudi - Tagesuebersicht</span>
+      <span class="kicker">Kalorienbrudi</span>
       <h1>Dashboard <b id="userName">Denis</b></h1>
     </div>
     <div class="toggle" id="toggle">
@@ -291,7 +293,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 const DATA = __DATA_JSON__;
 const RATIO={p:0.30,f:0.30,c:0.40};
 const METRICS={kcal:{label:'Kalorien',unit:'kcal'},p:{label:'Protein',unit:'g'},f:{label:'Fett',unit:'g'},c:{label:'Carbs',unit:'g'}};
-let curUser='Denis', curMetric='kcal';
+let curUser='Denis', curMetric='kcal', curPeriod='W';
 
 const WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
 function fmtDay(iso){const dt=new Date(iso+'T00:00');return WD[dt.getDay()]+' '+String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.';}
@@ -300,13 +302,26 @@ function classify(u,kcal){if(kcal<=u.goalIntake+u.greenBuf)return'green';if(kcal
 function targets(u){return{kcal:u.goalIntake,p:Math.round(u.goalIntake*RATIO.p/4),f:Math.round(u.goalIntake*RATIO.f/9),c:Math.round(u.goalIntake*RATIO.c/4)};}
 function mondayOf(iso){const dt=new Date(iso+'T00:00');const day=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-day);return dt;}
 function isoShort(dt){return String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.';}
-function weeklyAgg(days){
+const MONTHS=['Jan','Feb','Mrz','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+const PERIODS={W:'Woche',M:'Monat',J:'Jahr'};
+function periodKey(iso,mode){
+  const dt=new Date(iso+'T00:00');
+  if(mode==='J')return String(dt.getFullYear());
+  if(mode==='M')return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
+  return mondayOf(iso).toISOString().slice(0,10);
+}
+function periodLabel(k,mode){
+  if(mode==='J')return k;
+  if(mode==='M'){const p=k.split('-');return MONTHS[+p[1]-1]+' '+p[0];}
+  const mon=new Date(k+'T00:00'),sun=new Date(mon);sun.setDate(sun.getDate()+6);
+  return isoShort(mon)+'-'+isoShort(sun);
+}
+function periodAgg(days,mode){
   const g={};
-  days.forEach(x=>{const k=mondayOf(x.d).toISOString().slice(0,10);(g[k]=g[k]||[]).push(x);});
+  days.forEach(x=>{const k=periodKey(x.d,mode);(g[k]=g[k]||[]).push(x);});
   return Object.keys(g).sort().map(k=>{
     const a=g[k],n=a.length,av=key=>Math.round(a.reduce((s,x)=>s+x[key],0)/n);
-    const mon=new Date(k+'T00:00'),sun=new Date(mon);sun.setDate(sun.getDate()+6);
-    return{n,range:isoShort(mon)+'-'+isoShort(sun),kcal:av('kcal'),p:av('p'),f:av('f'),c:av('c')};
+    return{n,range:periodLabel(k,mode),kcal:av('kcal'),p:av('p'),f:av('f'),c:av('c')};
   });
 }
 
@@ -352,7 +367,8 @@ function render(){
         <div class="goalrow"><span class="gk">Geplantes Defizit</span><span class="gv">${u.deficitTarget.toLocaleString('de')} <small>kcal</small></span></div>
         <div class="goalrow"><span class="gk">Erhaltungsbedarf</span><span class="gv">${maintenance(u).toLocaleString('de')} <small>kcal</small></span></div>
         <div class="goalrow"><span class="gk">Makro-Ziel</span><span class="gv macro"><b>${t.p}</b>P - <b>${t.f}</b>F - <b>${t.c}</b>C <small>g</small></span></div>
-        <div class="goalrow"><span class="gk">Gewicht</span><span class="gv">${u.weight!=null?u.weight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
+        <div class="goalrow"><span class="gk">Startgewicht</span><span class="gv">${u.startWeight!=null?u.startWeight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
+        <div class="goalrow"><span class="gk">Aktuelles Gewicht</span><span class="gv">${u.weight!=null?u.weight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
         <div class="goalrow"><span class="gk">Zielgewicht</span><span class="gv">${u.zielWeight!=null?u.zielWeight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
         <div class="goalrow"><span class="gk">Letzter Eintrag</span><span class="gv" style="font-size:14px">${fmtDay(u.days[u.days.length-1].d)}</span></div>
       </div>
@@ -381,8 +397,11 @@ function render(){
     </div>
 
     <div class="panel stagger" style="animation-delay:.26s">
-      <div class="chart-title">
-        <h2>Wochendurchschnitt</h2>
+      <div class="chart-title"><h2>${curPeriod==='W'?'Wochendurchschnitt':curPeriod==='M'?'Monatsdurchschnitt':'Jahresdurchschnitt'}</h2></div>
+      <div class="chart-controls">
+        <div class="metric-toggle seg" id="pt">
+          ${Object.keys(PERIODS).map(p=>`<button data-p="${p}" class="${p===curPeriod?'active':''}" title="${PERIODS[p]}">${p}</button>`).join('')}
+        </div>
         <div class="metric-toggle" id="mt">
           ${Object.keys(METRICS).map(m=>`<button data-m="${m}" class="${m===curMetric?'active':''}">${METRICS[m].label}</button>`).join('')}
         </div>
@@ -392,7 +411,8 @@ function render(){
     </div>
   `;
   document.getElementById('mt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curMetric=b.dataset.m;render();});
-  drawWeekly(weeklyAgg(u.days),u,t);
+  document.getElementById('pt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curPeriod=b.dataset.p;render();});
+  drawWeekly(periodAgg(u.days,curPeriod).slice(-4),u,t);
   document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - '+total+' Tage - Verhaeltnis 30 % P / 30 % F / 40 % C - automatisch generiert';
 }
 
@@ -400,7 +420,8 @@ function drawWeekly(weeks,u,t){
   const plot=document.getElementById('plot'), wkl=document.getElementById('wkl');
   const H=158, tgt=t[curMetric];
   const maxV=Math.max(...weeks.map(w=>w[curMetric]),tgt)*1.18;
-  document.getElementById('msub').textContent=METRICS[curMetric].label+' \\u00d8 pro Tag, gruppiert nach Kalenderwoche ('+METRICS[curMetric].unit+') - gestrichelt: Ziel '+tgt+' '+METRICS[curMetric].unit;
+  const grp=curPeriod==='W'?'Kalenderwoche':curPeriod==='M'?'Monat':'Jahr';
+  document.getElementById('msub').textContent=METRICS[curMetric].label+' \\u00d8 pro Tag, gruppiert nach '+grp+' ('+METRICS[curMetric].unit+') - gestrichelt: Ziel '+tgt+' '+METRICS[curMetric].unit;
   plot.innerHTML=weeks.map(w=>{
     const h=Math.round(w[curMetric]/maxV*H);
     return `<div class="wcol"><div class="wval">${w[curMetric].toLocaleString('de')}</div><div class="wbar" style="height:${h}px"></div></div>`;
