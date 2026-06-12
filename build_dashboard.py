@@ -293,6 +293,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 const DATA = __DATA_JSON__;
 const RATIO={p:0.30,f:0.30,c:0.40};
 const METRICS={kcal:{label:'Kalorien',unit:'kcal'},p:{label:'Protein',unit:'g'},f:{label:'Fett',unit:'g'},c:{label:'Carbs',unit:'g'}};
+
+/* ============================================================
+   EINSTELLUNG: wie viele der LETZTEN Perioden unten anzeigen
+   3 = letzte 3 (Wochen / Monate / Jahre, je nach Auswahl)
+   0 = alle anzeigen (kein Limit)
+   ============================================================ */
+const PERIOD_LIMIT = 3;
+
 let curUser='Denis', curMetric='kcal', curPeriod='W';
 
 const WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
@@ -412,7 +420,8 @@ function render(){
   `;
   document.getElementById('mt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curMetric=b.dataset.m;render();});
   document.getElementById('pt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curPeriod=b.dataset.p;render();});
-  drawWeekly(periodAgg(u.days,curPeriod).slice(-4),u,t);
+  const agg=periodAgg(u.days,curPeriod);
+  drawWeekly(PERIOD_LIMIT>0?agg.slice(-PERIOD_LIMIT):agg,u,t);
   document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - '+total+' Tage - Verhaeltnis 30 % P / 30 % F / 40 % C - automatisch generiert';
 }
 
