@@ -364,13 +364,16 @@ function render(){
   const maxAbs=Math.max(...last7.map(x=>Math.abs(x.kcal-u.goalIntake)),300)*1.04;
 
   const maint=u.goalIntake+u.deficitTarget;
-  // Ziel-Fortschritt ab der letzten Gewichtsaenderung: Anker = fruehestes Datum des
-  // kleinsten Gewichts. totalNeeded ergibt sich aus (Ankergewicht - Zielgewicht),
-  // und die Defizite AB dem Ankerdatum (inkl.) werden aufsummiert. So startet das Ziel
-  // bei jedem Gewichtsupdate neu und der Fortschritt bewegt sich ab da kontinuierlich.
+  // Ziel-Fortschritt ueber die GESAMTE Strecke Startgewicht -> Zielgewicht.
+  // Bereits durch Abnehmen erreicht: (Startgewicht - kleinstes/aktuelles Gewicht).
+  // Ab dem Ankerdatum (fruehestes Datum des kleinsten Gewichts, inkl.) kommen die
+  // taeglichen Defizite oben drauf, sodass sich der Prozentwert ab da weiter bewegt.
   const anchorW=(u.anchorWeight!=null?u.anchorWeight:u.weight);
-  const saved=u.days.reduce((s,x)=>s+((u.anchorDate==null||x.d>=u.anchorDate)?(maint-x.kcal):0),0);
-  const totalNeeded=(anchorW!=null&&u.zielWeight!=null)?(anchorW-u.zielWeight)*7000:0;
+  const sw=(u.startWeight!=null?u.startWeight:anchorW);
+  const savedByWeight=(sw!=null&&anchorW!=null)?(sw-anchorW)*7000:0;
+  const savedSinceAnchor=u.days.reduce((s,x)=>s+((u.anchorDate==null||x.d>=u.anchorDate)?(maint-x.kcal):0),0);
+  const saved=savedByWeight+savedSinceAnchor;
+  const totalNeeded=(sw!=null&&u.zielWeight!=null)?(sw-u.zielWeight)*7000:0;
   const prog=totalNeeded>0?Math.max(0,Math.min(100,saved/totalNeeded*100)):0;
   const remain=Math.max(0,totalNeeded-saved);
   const daysLeft=Math.abs(Math.round(remain/u.deficitTarget));
