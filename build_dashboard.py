@@ -117,11 +117,21 @@ def build_data(pages):
         weight = weights[-1] if weights else None
         start_weight = weights[0] if weights else weight
         ziel = next((e["zielWeight"] for e in reversed(entries) if e["zielWeight"]), cfg["zielWeight"])
+        # Anker fuer den Ziel-Fortschritt: kleinstes erfasstes Gewicht und davon
+        # das fruehestes Datum. Ab diesem Punkt wird kontinuierlich weitergerechnet,
+        # d.h. nach jedem Gewichtsupdate startet das Ziel neu.
+        weighted = [(e["d"], e["weight"]) for e in entries if e["weight"] is not None]
+        if weighted:
+            anchor_weight = min(w for _, w in weighted)
+            anchor_date = min(d for d, w in weighted if w == anchor_weight)
+        else:
+            anchor_weight, anchor_date = None, None
         data[person] = {
             "accent": cfg["accent"], "accent2": cfg["accent2"],
             "goalIntake": goal, "deficitTarget": cfg["deficitTarget"],
             "weight": weight, "startWeight": start_weight,
             "zielWeight": ziel, "greenBuf": cfg["greenBuf"],
+            "anchorWeight": anchor_weight, "anchorDate": anchor_date,
             "days": days,
         }
     return data
@@ -354,9 +364,13 @@ function render(){
   const maxAbs=Math.max(...last7.map(x=>Math.abs(x.kcal-u.goalIntake)),300)*1.04;
 
   const maint=u.goalIntake+u.deficitTarget;
-  const saved=u.days.reduce((s,x)=>s+(maint-x.kcal),0);
-  const sw=(u.startWeight!=null?u.startWeight:u.weight);
-  const totalNeeded=(sw!=null&&u.zielWeight!=null)?(sw-u.zielWeight)*7000:0;
+  // Ziel-Fortschritt ab der letzten Gewichtsaenderung: Anker = fruehestes Datum des
+  // kleinsten Gewichts. totalNeeded ergibt sich aus (Ankergewicht - Zielgewicht),
+  // und die Defizite AB dem Ankerdatum (inkl.) werden aufsummiert. So startet das Ziel
+  // bei jedem Gewichtsupdate neu und der Fortschritt bewegt sich ab da kontinuierlich.
+  const anchorW=(u.anchorWeight!=null?u.anchorWeight:u.weight);
+  const saved=u.days.reduce((s,x)=>s+((u.anchorDate==null||x.d>=u.anchorDate)?(maint-x.kcal):0),0);
+  const totalNeeded=(anchorW!=null&&u.zielWeight!=null)?(anchorW-u.zielWeight)*7000:0;
   const prog=totalNeeded>0?Math.max(0,Math.min(100,saved/totalNeeded*100)):0;
   const remain=Math.max(0,totalNeeded-saved);
   const daysLeft=Math.abs(Math.round(remain/u.deficitTarget));
