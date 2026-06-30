@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-Kalorienbrudi Dashboard Generator
----------------------------------
-Zieht alle Eintraege aus der Notion-Datenbank und erzeugt eine statische index.html.
-Benoetigt nur die Python-Standardbibliothek (urllib) – kein pip install.
+Kalorienbrudi + Naehrstoffbrudi Dashboard Generator
+---------------------------------------------------
+Zieht alle Eintraege aus ZWEI Notion-Datenbanken und erzeugt EINE statische
+index.html mit Umschalter oben (Kalorien <-> Naehrstoffe).
+
+  - Kalorien:   "Tagesuebersicht"      (eine Zeile pro Tag/Person)
+  - Naehrstoffe:"Lebensmittel-Analyse"  (eine Zeile pro Lebensmittel)
+
+Benoetigt nur die Python-Standardbibliothek (urllib) - kein pip install.
 
 Env:
   NOTION_TOKEN   Notion Internal Integration Token (als GitHub-Secret hinterlegen)
@@ -19,11 +24,12 @@ import urllib.error
 # ----------------------------------------------------------------------------
 # Konfiguration
 # ----------------------------------------------------------------------------
-DATA_SOURCE_ID = "a748d265-3bbe-448b-b4e8-c8111c208c46"
-NOTION_VERSION = "2025-09-03"   # Version mit /v1/data_sources Endpunkten
+DATA_SOURCE_KCAL = "a748d265-3bbe-448b-b4e8-c8111c208c46"   # Tagesuebersicht
+DATA_SOURCE_NUTRI = "be09a702-364a-4f0f-9548-5f4f32092dee"  # Lebensmittel-Analyse
+NOTION_VERSION = "2025-09-03"
 TOKEN = os.environ.get("NOTION_TOKEN")
 
-# Pro Person fixe Einstellungen, die nicht in Notion stehen
+# --- Kalorien: pro Person fixe Einstellungen ---
 PERSON_CONFIG = {
     "Denis": {"accent": "#4DA6FF", "accent2": "#1E6FD9", "deficitTarget": 1000,
               "greenBuf": 95, "zielWeight": 80, "goalIntake": 1900},
@@ -31,12 +37,40 @@ PERSON_CONFIG = {
               "greenBuf": 75, "zielWeight": 60, "goalIntake": 1500},
 }
 
+# --- Naehrstoffe: pro Person Geschlecht + Akzent (eigene Farben fuer die Seite) ---
+NUTRI_CONFIG = {
+    "Denis": {"sex": "m", "accent": "#4DA6FF", "accent2": "#1E6FD9"},
+    "Leni":  {"sex": "w", "accent": "#FF6FB5", "accent2": "#D94D92"},
+}
+
+# Tages-Referenzwerte (DGE/D-A-CH, Erwachsene) je Geschlecht. Hier anpassbar.
+REF = {
+    "m": {
+        "Ballaststoffe (g)": 30, "Calcium (mg)": 1000, "Eisen (mg)": 10,
+        "Folat (µg)": 300, "Jod (µg)": 200, "Kalium (mg)": 4000,
+        "Magnesium (mg)": 350, "Omega-3 (g)": 1.6, "Selen (µg)": 70,
+        "Vitamin A (µg)": 850, "Vitamin B12 (µg)": 4, "Vitamin C (mg)": 110,
+        "Vitamin D (µg)": 20, "Vitamin E (mg)": 14, "Vitamin K (µg)": 70,
+        "Zink (mg)": 11,
+    },
+    "w": {
+        "Ballaststoffe (g)": 30, "Calcium (mg)": 1000, "Eisen (mg)": 15,
+        "Folat (µg)": 300, "Jod (µg)": 200, "Kalium (mg)": 4000,
+        "Magnesium (mg)": 300, "Omega-3 (g)": 1.1, "Selen (µg)": 60,
+        "Vitamin A (µg)": 700, "Vitamin B12 (µg)": 4, "Vitamin C (mg)": 95,
+        "Vitamin D (µg)": 20, "Vitamin E (mg)": 12, "Vitamin K (µg)": 60,
+        "Zink (mg)": 8,
+    },
+}
+NUM_KEYS = list(REF["m"].keys()) + ["Cholesterin (mg)"]
+CAT_KEYS = ["Darmgesundheit", "Low FODMAP", "Säure-Base"]
+
 
 # ----------------------------------------------------------------------------
-# Notion-Abfrage (mit Pagination)
+# Notion-Abfrage (mit Pagination) - parametrisiert auf die Datenquelle
 # ----------------------------------------------------------------------------
-def notion_query_all():
-    url = "https://api.notion.com/v1/data_sources/%s/query" % DATA_SOURCE_ID
+def notion_query_all(data_source_id):
+    url = "https://api.notion.com/v1/data_sources/%s/query" % data_source_id
     headers = {
         "Authorization": "Bearer %s" % TOKEN,
         "Notion-Version": NOTION_VERSION,
@@ -83,9 +117,9 @@ def date_start(props, name):
 
 
 # ----------------------------------------------------------------------------
-# Daten aufbereiten
+# Kalorien-Daten aufbereiten
 # ----------------------------------------------------------------------------
-def build_data(pages):
+def build_kcal_data(pages):
     raw = {k: [] for k in PERSON_CONFIG}
     for pg in pages:
         props = pg.get("properties", {})
@@ -95,7 +129,7 @@ def build_data(pages):
         d = date_start(props, "Datum")
         kcal = num(props, "Kalorien (kcal)")
         if d is None or kcal is None:
-            continue  # Tage ohne Datum oder ohne Essen ueberspringen
+            continue
         raw[person].append({
             "d": d,
             "kcal": kcal,
@@ -117,9 +151,6 @@ def build_data(pages):
         weight = weights[-1] if weights else None
         start_weight = weights[0] if weights else weight
         ziel = next((e["zielWeight"] for e in reversed(entries) if e["zielWeight"]), cfg["zielWeight"])
-        # Anker fuer den Ziel-Fortschritt: kleinstes erfasstes Gewicht und davon
-        # das fruehestes Datum. Ab diesem Punkt wird kontinuierlich weitergerechnet,
-        # d.h. nach jedem Gewichtsupdate startet das Ziel neu.
         weighted = [(e["d"], e["weight"]) for e in entries if e["weight"] is not None]
         if weighted:
             anchor_weight = min(w for _, w in weighted)
@@ -138,33 +169,87 @@ def build_data(pages):
 
 
 # ----------------------------------------------------------------------------
+# Naehrstoff-Daten aufbereiten: pro Person -> pro Tag aggregiert
+# ----------------------------------------------------------------------------
+def build_nutri_data(pages):
+    raw = {k: [] for k in NUTRI_CONFIG}
+    for pg in pages:
+        props = pg.get("properties", {})
+        person = select_name(props, "Person")
+        if person not in raw:
+            continue
+        d = date_start(props, "Datum")
+        if d is None:
+            continue
+        rec = {"d": d}
+        for k in NUM_KEYS:
+            rec[k] = num(props, k) or 0
+        for c in CAT_KEYS:
+            rec[c] = select_name(props, c)
+        raw[person].append(rec)
+
+    data = {}
+    for person, cfg in NUTRI_CONFIG.items():
+        bydate = {}
+        for e in raw[person]:
+            day = bydate.get(e["d"])
+            if day is None:
+                day = {"d": e["d"], "n": 0,
+                       "nut": {k: 0 for k in NUM_KEYS},
+                       "cat": {c: [0, 0, 0] for c in CAT_KEYS}}
+                bydate[e["d"]] = day
+            day["n"] += 1
+            for k in NUM_KEYS:
+                day["nut"][k] += e[k]
+            for c in CAT_KEYS:
+                v = e[c]
+                if v == "gut":
+                    day["cat"][c][0] += 1
+                elif v == "neutral":
+                    day["cat"][c][1] += 1
+                elif v == "schlecht":
+                    day["cat"][c][2] += 1
+        days = [bydate[k] for k in sorted(bydate)]
+        data[person] = {
+            "accent": cfg["accent"], "accent2": cfg["accent2"],
+            "ref": REF[cfg["sex"]],
+            "days": days,
+        }
+    return data
+
+
+# ----------------------------------------------------------------------------
 # Hauptlogik
 # ----------------------------------------------------------------------------
 def main():
     if not TOKEN:
         sys.stderr.write("Fehler: NOTION_TOKEN ist nicht gesetzt.\n")
         sys.exit(1)
-    pages = notion_query_all()
-    data = build_data(pages)
-    today = datetime.datetime.now(datetime.timezone.utc).strftime("%d.%m.%Y")
+    kcal = build_kcal_data(notion_query_all(DATA_SOURCE_KCAL))
+    nutri = build_nutri_data(notion_query_all(DATA_SOURCE_NUTRI))
+    today_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+    today_de = datetime.datetime.now(datetime.timezone.utc).strftime("%d.%m.%Y")
     html = (HTML_TEMPLATE
-            .replace("__DATA_JSON__", json.dumps(data, ensure_ascii=False))
-            .replace("__BUILD_DATE__", today))
+            .replace("__DATA_KCAL__", json.dumps(kcal, ensure_ascii=False))
+            .replace("__DATA_NUTRI__", json.dumps(nutri, ensure_ascii=False))
+            .replace("__TODAY_ISO__", today_iso)
+            .replace("__BUILD_DATE__", today_de))
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print("index.html geschrieben. Denis: %d Tage, Leni: %d Tage"
-          % (len(data["Denis"]["days"]), len(data["Leni"]["days"])))
+    print("index.html geschrieben. Kalorien Denis %d / Leni %d | Naehrstoffe Denis %d / Leni %d"
+          % (len(kcal["Denis"]["days"]), len(kcal["Leni"]["days"]),
+             len(nutri["Denis"]["days"]), len(nutri["Leni"]["days"])))
 
 
 # ----------------------------------------------------------------------------
-# HTML-Template (Daten werden ueber __DATA_JSON__ injiziert)
+# HTML-Template
 # ----------------------------------------------------------------------------
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kalorienbrudi - Dashboard</title>
+<title>Brudi-Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
@@ -177,6 +262,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     --display:'Bricolage Grotesque',sans-serif;
     --body:'Familjen Grotesk',sans-serif;
     --mono:'DM Mono',monospace;
+    --darkink:#15130F;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{background:var(--bg);color:var(--text);font-family:var(--body)}
@@ -184,32 +270,41 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     padding:26px;
     background-image:radial-gradient(circle at 12% 0%, rgba(77,166,255,.06), transparent 42%),
                      radial-gradient(circle at 100% 100%, rgba(255,111,181,.05), transparent 40%);
-    min-height:100vh;
+    min-height:100vh;transition:background-color .35s,color .35s;
   }
   .grain{position:fixed;inset:0;pointer-events:none;opacity:.035;z-index:99;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
   .wrap{max-width:1080px;margin:0 auto}
 
-  header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:24px}
+  header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:22px}
   .brand{display:flex;flex-direction:column;gap:2px}
-  .brand .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted)}
-  .brand h1{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:-.02em;line-height:1}
+  .brand .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.30em;text-transform:uppercase;color:var(--muted)}
+  .brand h1{font-family:var(--display);font-weight:800;font-size:33px;letter-spacing:-.02em;line-height:1}
   .brand h1 b{color:var(--accent);transition:color .4s}
+
+  .pagenav{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .pagenav button{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--faint);background:none;border:none;cursor:pointer;padding:2px 0;transition:.2s}
+  .pagenav button:hover{color:var(--muted)}
+  .pagenav button.active{color:var(--accent)}
+  .pagenav .navsep{color:var(--faint);font-family:var(--mono);font-size:11px}
+
   .toggle{display:flex;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:5px;gap:4px}
   .toggle button{font-family:var(--display);font-weight:600;font-size:15px;color:var(--muted);background:none;border:none;
-    padding:9px 22px;border-radius:10px;cursor:pointer;transition:.25s;display:flex;align-items:center;gap:8px}
+    padding:9px 20px;border-radius:10px;cursor:pointer;transition:.25s;display:flex;align-items:center;gap:8px}
   .toggle button .dot{width:9px;height:9px;border-radius:50%}
   .toggle button[data-u="Denis"] .dot{background:#4DA6FF}
   .toggle button[data-u="Leni"] .dot{background:#FF6FB5}
-  .toggle button.active{color:#15130F}
+  .toggle button.active{color:var(--darkink)}
   .toggle button.active[data-u="Denis"]{background:#4DA6FF}
   .toggle button.active[data-u="Leni"]{background:#FF6FB5}
 
-  .top{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-bottom:16px}
-  @media(max-width:780px){.top{grid-template-columns:1fr}}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px}
   .panel .label{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);margin-bottom:14px}
 
+  /* ===================== KALORIEN-SEITE ===================== */
+  .top{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-bottom:16px}
+  @media(max-width:780px){.top{grid-template-columns:1fr}}
   .goals .goalrow{display:flex;align-items:baseline;justify-content:space-between;padding:10px 0;border-bottom:1px dashed var(--border)}
   .goals .goalrow:last-child{border-bottom:none}
   .goals .gk{font-size:14px;color:var(--muted)}
@@ -218,7 +313,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .goals .gv.accent{color:var(--accent)}
   .goals .gv.macro{font-size:13px}
   .goals .gv.macro b{color:var(--text);font-weight:500}
-
   .progress{margin-bottom:16px;padding-bottom:15px;border-bottom:1px dashed var(--border)}
   .progress .prow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
   .progress .pk{font-size:13px;color:var(--text);font-weight:500}
@@ -227,7 +321,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .progress .pfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .7s cubic-bezier(.2,.8,.2,1)}
   .progress .pcap{margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.5}
   .progress .pcap b{color:var(--text);font-weight:500}
-
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   @media(max-width:780px){.kpis{grid-template-columns:repeat(2,1fr)}}
   .kpi{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px 18px 16px;position:relative;overflow:hidden}
@@ -240,11 +333,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .kpi .cap{margin-top:7px;font-size:13px;color:var(--text);line-height:1.25;font-weight:500}
   .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.25}
   .kpi .pct{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:6px}
-
   .chart-title{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px}
   .chart-title h2{font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:-.01em}
   .chart-sub{font-size:12.5px;color:var(--muted);margin-bottom:18px}
-
   .dvg{display:flex;flex-direction:column;gap:9px}
   .dvg .drow{display:grid;grid-template-columns:84px 1fr 84px;align-items:center;gap:10px}
   .dvg .dday{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
@@ -256,11 +347,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .dvg .fill.red{background:linear-gradient(90deg,rgba(255,92,87,.9),rgba(255,92,87,.4))}
   .dvg .dval{font-family:var(--mono);font-size:12px;font-weight:500;white-space:nowrap;text-align:left}
   .dvg .dval.green{color:var(--green)} .dvg .dval.amber{color:var(--amber)} .dvg .dval.red{color:var(--red)}
-
   .metric-toggle{display:flex;gap:5px;flex-wrap:nowrap}
   .metric-toggle button{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--muted);background:var(--panel2);
     border:1px solid var(--border);padding:7px 12px;border-radius:9px;cursor:pointer;transition:.2s;white-space:nowrap}
-  .metric-toggle button.active{background:var(--accent);color:#15130F;border-color:var(--accent);font-weight:500}
+  .metric-toggle button.active{background:var(--accent);color:var(--darkink);border-color:var(--accent);font-weight:500}
   .chart-controls{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:6px}
   .seg button{min-width:30px;text-align:center;font-weight:500}
   .weekly{display:flex;flex-direction:column}
@@ -275,6 +365,57 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .wklabel{flex:1;max-width:130px;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;line-height:1.35}
   .wklabel small{display:block;color:var(--faint);font-size:9.5px}
 
+  /* ===================== NAEHRSTOFF-SEITE ===================== */
+  .timebar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px 18px;margin-bottom:20px}
+  .timebar .tlabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.20em;text-transform:uppercase;color:var(--faint)}
+  .timebar .tsub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+  .tseg{display:flex;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:4px}
+  .tseg button{font-family:var(--display);font-weight:600;font-size:13px;color:var(--muted);background:none;border:none;
+    padding:8px 16px;border-radius:8px;cursor:pointer;transition:.2s;white-space:nowrap}
+  .tseg button.active{background:var(--accent);color:var(--darkink)}
+  .sec-title{display:flex;align-items:baseline;gap:10px;margin:4px 2px 14px}
+  .sec-title h2{font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-.01em}
+  .sec-title .hint{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .checks{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:30px}
+  @media(max-width:820px){.checks{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:460px){.checks{grid-template-columns:1fr}}
+  .check{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px 16px 15px;overflow:hidden}
+  .check .topbar{position:absolute;top:0;left:0;width:100%;height:3px}
+  .check.green .topbar{background:var(--green)} .check.amber .topbar{background:var(--amber)} .check.red .topbar{background:var(--red)}
+  .check .ck-head{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+  .check .ck-dot{width:11px;height:11px;border-radius:50%;flex:none}
+  .check.green .ck-dot{background:var(--green);box-shadow:0 0 10px rgba(91,209,106,.5)}
+  .check.amber .ck-dot{background:var(--amber);box-shadow:0 0 10px rgba(240,192,74,.45)}
+  .check.red .ck-dot{background:var(--red);box-shadow:0 0 10px rgba(255,92,87,.45)}
+  .check .ck-name{font-family:var(--display);font-weight:600;font-size:14.5px}
+  .check .ck-status{font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:-.01em;margin-top:6px}
+  .check.green .ck-status{color:var(--green)} .check.amber .ck-status{color:var(--amber)} .check.red .ck-status{color:var(--red)}
+  .check .ck-detail{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+  .check .ck-help{font-size:11px;color:var(--faint);margin-top:9px;line-height:1.35}
+  .micro-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+  .micro-head h2{font-family:var(--display);font-weight:600;font-size:18px}
+  .micro-head .mh-sub{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px}
+  .bars{display:flex;flex-direction:column;gap:11px}
+  .brow{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:12px}
+  @media(max-width:560px){.brow{grid-template-columns:120px 1fr 44px;gap:8px}}
+  .bname{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .bname .bn{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bname .bamt{font-family:var(--mono);font-size:10px;color:var(--faint);white-space:nowrap}
+  .btrack{position:relative;height:22px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;overflow:hidden}
+  .bfill{position:absolute;top:0;left:0;height:100%;border-radius:6px 0 0 6px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  .bfill.green{background:linear-gradient(90deg,rgba(91,209,106,.45),rgba(91,209,106,.95))}
+  .bfill.amber{background:linear-gradient(90deg,rgba(240,192,74,.5),rgba(240,192,74,.95))}
+  .bfill.red{background:linear-gradient(90deg,rgba(255,92,87,.55),rgba(255,92,87,.95))}
+  .bfill.full{border-radius:6px}
+  .bpct{font-family:var(--mono);font-size:12px;font-weight:500;text-align:right}
+  .bpct.green{color:var(--green)} .bpct.amber{color:var(--amber)} .bpct.red{color:var(--red)}
+  .sortbtns{display:flex;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:4px}
+  .sortbtns button{font-family:var(--mono);font-size:11px;color:var(--muted);background:none;border:none;
+    padding:7px 12px;border-radius:7px;cursor:pointer;transition:.2s;white-space:nowrap}
+  .sortbtns button.active{background:var(--accent);color:var(--darkink);font-weight:500}
+
+  /* ---- shared ---- */
   .empty{text-align:center;padding:48px 20px;color:var(--faint);font-family:var(--mono);font-size:13px;line-height:1.7}
   .empty b{display:block;font-family:var(--display);font-size:20px;color:var(--muted);margin-bottom:6px}
   footer{margin-top:22px;text-align:center;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.05em}
@@ -285,10 +426,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="grain"></div>
 <div class="wrap">
+  <nav class="pagenav" id="pageswitch">
+    <button data-pg="kcal" class="active">Kalorien</button>
+    <span class="navsep">/</span>
+    <button data-pg="nutri">Nährstoffe</button>
+  </nav>
   <header>
     <div class="brand">
-      <span class="kicker">Kalorienbrudi</span>
-      <h1>Dashboard <b id="userName">Denis</b></h1>
+      <span class="kicker" id="kicker">Kalorienbrudi</span>
+      <h1 id="title">Dashboard <b>Denis</b></h1>
     </div>
     <div class="toggle" id="toggle">
       <button data-u="Denis" class="active"><span class="dot"></span>Denis</button>
@@ -300,19 +446,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </div>
 
 <script>
-const DATA = __DATA_JSON__;
+const DATA_KCAL = __DATA_KCAL__;
+const DATA_NUTRI = __DATA_NUTRI__;
+const TODAY = "__TODAY_ISO__";
+
+let curPage='kcal', curUser='Denis';
+
+/* ============================ KALORIEN ============================ */
 const RATIO={p:0.30,f:0.30,c:0.40};
 const METRICS={kcal:{label:'Kalorien',unit:'kcal'},p:{label:'Protein',unit:'g'},f:{label:'Fett',unit:'g'},c:{label:'Carbs',unit:'g'}};
-
-/* ============================================================
-   EINSTELLUNG: wie viele der LETZTEN Perioden unten anzeigen
-   3 = letzte 3 (Wochen / Monate / Jahre, je nach Auswahl)
-   0 = alle anzeigen (kein Limit)
-   ============================================================ */
 const PERIOD_LIMIT = 3;
-
-let curUser='Denis', curMetric='kcal', curPeriod='W';
-
+let curMetric='kcal', curPeriod='W';
 const WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
 function fmtDay(iso){const dt=new Date(iso+'T00:00');return WD[dt.getDay()]+' '+String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.';}
 function maintenance(u){return u.goalIntake+u.deficitTarget;}
@@ -342,32 +486,23 @@ function periodAgg(days,mode){
     return{n,range:periodLabel(k,mode),kcal:av('kcal'),p:av('p'),f:av('f'),c:av('c')};
   });
 }
-
-function render(){
-  const u=DATA[curUser];
+function renderKcal(){
+  const u=DATA_KCAL[curUser];
   document.documentElement.style.setProperty('--accent',u.accent);
   document.documentElement.style.setProperty('--accent2',u.accent2);
-  document.getElementById('userName').textContent=curUser;
   const C=document.getElementById('content');
-
   if(!u.days||u.days.length===0){
     C.innerHTML='<div class="panel empty stagger"><b>Noch keine Eintraege fuer '+curUser+'</b>Sobald '+curUser+' Mahlzeiten eintraegt,<br>erscheinen hier die Auswertungen.</div>';
     document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - keine Daten';
     return;
   }
-
   const t=targets(u);
   const counts={green:0,amber:0,red:0};
   u.days.forEach(x=>counts[classify(u,x.kcal)]++);
   const total=u.days.length, pct=n=>total?Math.round(n/total*100)+'%':'-';
   const last7=u.days.slice(-7).reverse();
   const maxAbs=Math.max(...last7.map(x=>Math.abs(x.kcal-u.goalIntake)),300)*1.04;
-
   const maint=u.goalIntake+u.deficitTarget;
-  // Ziel-Fortschritt ueber die GESAMTE Strecke Startgewicht -> Zielgewicht.
-  // Bereits durch Abnehmen erreicht: (Startgewicht - kleinstes/aktuelles Gewicht).
-  // Ab dem Ankerdatum (fruehestes Datum des kleinsten Gewichts, inkl.) kommen die
-  // taeglichen Defizite oben drauf, sodass sich der Prozentwert ab da weiter bewegt.
   const anchorW=(u.anchorWeight!=null?u.anchorWeight:u.weight);
   const sw=(u.startWeight!=null?u.startWeight:anchorW);
   const savedByWeight=(sw!=null&&anchorW!=null)?(sw-anchorW)*7000:0;
@@ -435,13 +570,12 @@ function render(){
       <div class="weekly"><div class="plot" id="plot"></div><div class="wklabels" id="wkl"></div></div>
     </div>
   `;
-  document.getElementById('mt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curMetric=b.dataset.m;render();});
-  document.getElementById('pt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curPeriod=b.dataset.p;render();});
+  document.getElementById('mt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curMetric=b.dataset.m;renderKcal();});
+  document.getElementById('pt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curPeriod=b.dataset.p;renderKcal();});
   const agg=periodAgg(u.days,curPeriod);
   drawWeekly(PERIOD_LIMIT>0?agg.slice(-PERIOD_LIMIT):agg,u,t);
   document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - '+total+' Tage - Verhaeltnis 30 % P / 30 % F / 40 % C - automatisch generiert';
 }
-
 function drawWeekly(weeks,u,t){
   const plot=document.getElementById('plot'), wkl=document.getElementById('wkl');
   const H=158, tgt=t[curMetric];
@@ -458,11 +592,149 @@ function drawWeekly(weeks,u,t){
   wkl.innerHTML=weeks.map(w=>`<div class="wklabel">${w.range}<small>${w.n} ${w.n===1?'Tag':'Tage'}</small></div>`).join('');
 }
 
+/* ============================ NAEHRSTOFFE ============================ */
+const CATS=[
+  {key:"Darmgesundheit", help:"Ballaststoffe, Fermentiertes, Vielfalt = gut"},
+  {key:"Low FODMAP",     help:"niedrig-FODMAP / gut vertraeglich = gut"},
+  {key:"Säure-Base",     help:"basisch = gut, saeurebildend = schlecht"}
+];
+const CHOL_GREEN=300, CHOL_AMBER=500;
+const CAT_GREEN=70, CAT_AMBER=50;
+const MIC_GREEN=90, MIC_AMBER=50;
+const NPERIODS={ "7":"letzte 7 Tage", "30":"letzte 30 Tage", "all":"gesamter Zeitraum" };
+let curNPeriod='7', curSort='worst';
+function splitUnit(key){ const m=key.match(/^(.*) \\(([^)]+)\\)$/); return m?[m[1],m[2]]:[key,'']; }
+function fmtN(v){ if(v>=100)return Math.round(v).toLocaleString('de'); if(v>=10)return (Math.round(v*10)/10).toLocaleString('de'); return (Math.round(v*100)/100).toLocaleString('de'); }
+function shiftISO(iso,days){ const d=new Date(iso+'T00:00'); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+function nWindowDays(u){
+  if(curNPeriod==='all') return u.days.slice();
+  const n=parseInt(curNPeriod,10), cut=shiftISO(TODAY,-(n-1));
+  return u.days.filter(x=>x.d>=cut);
+}
+function micColor(p){ return p>=MIC_GREEN?'green':(p>=MIC_AMBER?'amber':'red'); }
+function checkCard(name, cls, status, detail, help, i){
+  return `<div class="check ${cls} stagger" style="animation-delay:${(0.02+0.03*i).toFixed(2)}s">
+    <div class="topbar"></div>
+    <div class="ck-head"><span class="ck-dot"></span><span class="ck-name">${name}</span></div>
+    <div class="ck-status">${status}</div>
+    <div class="ck-detail">${detail}</div>
+    <div class="ck-help">${help}</div>
+  </div>`;
+}
+function renderNutri(){
+  const u=DATA_NUTRI[curUser];
+  document.documentElement.style.setProperty('--accent',u.accent);
+  document.documentElement.style.setProperty('--accent2',u.accent2);
+  const C=document.getElementById('content');
+
+  if(!u.days.length){
+    C.innerHTML='<div class="panel empty stagger"><b>Noch keine Eintraege fuer '+curUser+'</b>Sobald in der Lebensmittel-Analyse Zeilen<br>fuer '+curUser+' liegen, erscheint hier die Auswertung.</div>';
+    document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - keine Daten';
+    return;
+  }
+  const wd=nWindowDays(u), nDays=wd.length;
+  const fmtDt=iso=>{const p=iso.split('-');return p[2]+'.'+p[1]+'.'+p[0];};
+  const tsub = nDays
+    ? fmtDt(wd[0].d)+' \\u2013 '+fmtDt(wd[wd.length-1].d)+' \\u00b7 '+nDays+(nDays===1?' getrackter Tag':' getrackte Tage')+' \\u00b7 \\u00d8 pro Tag'
+    : NPERIODS[curNPeriod]+' \\u00b7 keine Daten';
+
+  const timebar = `
+    <div class="timebar stagger">
+      <div><div class="tlabel">Zeitfenster</div><div class="tsub">${tsub}</div></div>
+      <div class="tseg" id="ntime">
+        <button data-p="7" class="${curNPeriod==='7'?'active':''}">7 Tage</button>
+        <button data-p="30" class="${curNPeriod==='30'?'active':''}">30 Tage</button>
+        <button data-p="all" class="${curNPeriod==='all'?'active':''}">Gesamt</button>
+      </div>
+    </div>`;
+
+  if(!nDays){
+    C.innerHTML=timebar+'<div class="panel empty stagger"><b>Keine Daten im Zeitfenster</b>Im '+NPERIODS[curNPeriod]+' wurde nichts getrackt.<br>Wechsle das Zeitfenster oben.</div>';
+    document.getElementById('ntime').querySelectorAll('button').forEach(b=>b.onclick=()=>{curNPeriod=b.dataset.p;renderNutri();});
+    document.getElementById('foot').textContent='Stand: __BUILD_DATE__';
+    return;
+  }
+
+  const sum={}; Object.keys(u.ref).forEach(k=>sum[k]=0); sum["Cholesterin (mg)"]=0;
+  const votes={}; CATS.forEach(c=>votes[c.key]=[0,0,0]);
+  wd.forEach(day=>{
+    Object.keys(sum).forEach(k=>{ sum[k]+=(day.nut[k]||0); });
+    CATS.forEach(c=>{ const v=day.cat[c.key]||[0,0,0]; votes[c.key][0]+=v[0]; votes[c.key][1]+=v[1]; votes[c.key][2]+=v[2]; });
+  });
+  const avg={}; Object.keys(sum).forEach(k=>avg[k]=sum[k]/nDays);
+
+  let checksHtml='';
+  CATS.forEach((c,i)=>{
+    const v=votes[c.key], tot=v[0]+v[1]+v[2];
+    let cls,status,detail;
+    if(!tot){ cls='amber'; status='-'; detail='keine Angaben'; }
+    else{
+      const score=(v[0]*100 + v[1]*50)/tot;
+      cls = score>=CAT_GREEN?'green':(score>=CAT_AMBER?'amber':'red');
+      status = cls==='green'?'Gut':(cls==='amber'?'Okay':'Kritisch');
+      detail = Math.round(score)+' / 100 \\u00b7 '+v[0]+'/'+v[1]+'/'+v[2]+' (g/n/s)';
+    }
+    checksHtml += checkCard(c.key, cls, status, detail, c.help, i);
+  });
+  (function(){
+    const ch=avg["Cholesterin (mg)"];
+    const cls = ch<=CHOL_GREEN?'green':(ch<=CHOL_AMBER?'amber':'red');
+    const status = cls==='green'?'Gut':(cls==='amber'?'Okay':'Hoch');
+    const detail = '\\u00d8 '+Math.round(ch).toLocaleString('de')+' mg/Tag (Ziel \\u2264'+CHOL_GREEN+')';
+    checksHtml += checkCard('Cholesterin', cls, status, detail, 'weniger ist besser - Ziel unter '+CHOL_GREEN+' mg/Tag', 3);
+  })();
+
+  let micros=Object.keys(u.ref).map(k=>{
+    const [name,unit]=splitUnit(k);
+    const a=avg[k]||0, ref=u.ref[k];
+    const pctRaw=ref>0?(a/ref*100):0, pct=Math.min(100,pctRaw);
+    return {name,unit,avg:a,ref,pct,pctRaw,color:micColor(pct)};
+  });
+  micros.sort((x,y)=> curSort==='worst' ? x.pct-y.pct : y.pct-x.pct);
+  let barsHtml=micros.map((m,i)=>{
+    const full=m.pct>=99.5?' full':'';
+    return `<div class="brow stagger" style="animation-delay:${(0.02*i).toFixed(2)}s">
+      <div class="bname"><span class="bn">${m.name}</span><span class="bamt">${fmtN(m.avg)} / ${fmtN(m.ref)} ${m.unit}</span></div>
+      <div class="btrack"><div class="bfill ${m.color}${full}" style="width:${m.pct.toFixed(1)}%"></div></div>
+      <div class="bpct ${m.color}">${Math.round(m.pctRaw)}%</div>
+    </div>`;
+  }).join('');
+
+  C.innerHTML = timebar + `
+    <div class="sec-title stagger"><h2>Gesundheits-Checkpoints</h2><span class="hint">Ampel im gewaehlten Zeitfenster</span></div>
+    <div class="checks">${checksHtml}</div>
+    <div class="panel stagger" style="animation-delay:.10s">
+      <div class="micro-head">
+        <div><h2>Mikronaehrstoffe</h2><div class="mh-sub">\\u00d8 pro Tag vs. Tagesreferenzwert \\u00b7 gedeckelt bei 100 %</div></div>
+        <div class="sortbtns" id="nsort">
+          <button data-s="worst" class="${curSort==='worst'?'active':''}">Schlechteste zuerst</button>
+          <button data-s="best" class="${curSort==='best'?'active':''}">Beste zuerst</button>
+        </div>
+      </div>
+      <div class="bars">${barsHtml}</div>
+    </div>`;
+
+  document.getElementById('ntime').querySelectorAll('button').forEach(b=>b.onclick=()=>{curNPeriod=b.dataset.p;renderNutri();});
+  document.getElementById('nsort').querySelectorAll('button').forEach(b=>b.onclick=()=>{curSort=b.dataset.s;renderNutri();});
+  document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - '+curUser+' - '+NPERIODS[curNPeriod]+' - Zielwerte: DGE-Tagesreferenz ('+(curUser==='Denis'?'m':'w')+') - automatisch generiert';
+}
+
+/* ============================ STEUERUNG ============================ */
+function renderAll(){
+  const nutri = curPage==='nutri';
+  document.querySelectorAll('#pageswitch button').forEach(b=>b.classList.toggle('active', b.dataset.pg===curPage));
+  document.getElementById('kicker').textContent = nutri ? 'Nährstoffbrudi' : 'Kalorienbrudi';
+  document.getElementById('title').innerHTML = 'Dashboard <b>'+curUser+'</b>';
+  if(nutri) renderNutri(); else renderKcal();
+}
+document.getElementById('pageswitch').querySelectorAll('button').forEach(b=>{
+  b.onclick=()=>{curPage=b.dataset.pg;renderAll();};
+});
 document.getElementById('toggle').querySelectorAll('button').forEach(b=>{
   b.onclick=()=>{document.querySelectorAll('#toggle button').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');curUser=b.dataset.u;curMetric='kcal';render();};
+    b.classList.add('active');curUser=b.dataset.u;curMetric='kcal';renderAll();};
 });
-render();
+renderAll();
 </script>
 </body>
 </html>
