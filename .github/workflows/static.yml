@@ -43,11 +43,6 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python build_dashboard.py
 
-      - name: Dashboard aus Notion bauen Part 2
-        env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-        run: python build_nutrient_dashboard.py
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
