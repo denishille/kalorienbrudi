@@ -116,6 +116,16 @@ def date_start(props, name):
     return d.get("start")[:10] if d and d.get("start") else None
 
 
+def title_text(props, name):
+    """Titel-Property als Klartext, Mengenangabe in Klammern am Ende entfernt."""
+    p = props.get(name) or {}
+    arr = p.get("title") or []
+    t = "".join(x.get("plain_text", "") for x in arr).strip()
+    if t.endswith(")") and " (" in t:
+        t = t.rsplit(" (", 1)[0]
+    return t or None
+
+
 # ----------------------------------------------------------------------------
 # Kalorien-Daten aufbereiten
 # ----------------------------------------------------------------------------
@@ -170,6 +180,7 @@ def build_kcal_data(pages):
 
 # ----------------------------------------------------------------------------
 # Naehrstoff-Daten aufbereiten: pro Person -> pro Tag aggregiert
+# cf = pro Kategorie [positive Lebensmittel, negative Lebensmittel] des Tages
 # ----------------------------------------------------------------------------
 def build_nutri_data(pages):
     raw = {k: [] for k in NUTRI_CONFIG}
@@ -181,7 +192,7 @@ def build_nutri_data(pages):
         d = date_start(props, "Datum")
         if d is None:
             continue
-        rec = {"d": d}
+        rec = {"d": d, "name": title_text(props, "Lebensmittel")}
         for k in NUM_KEYS:
             rec[k] = num(props, k) or 0
         for c in CAT_KEYS:
@@ -196,19 +207,25 @@ def build_nutri_data(pages):
             if day is None:
                 day = {"d": e["d"], "n": 0,
                        "nut": {k: 0 for k in NUM_KEYS},
-                       "cat": {c: [0, 0, 0] for c in CAT_KEYS}}
+                       "cat": {c: [0, 0, 0] for c in CAT_KEYS},
+                       "cf": {c: [[], []] for c in CAT_KEYS}}
                 bydate[e["d"]] = day
             day["n"] += 1
             for k in NUM_KEYS:
                 day["nut"][k] += e[k]
+            nm = e.get("name")
             for c in CAT_KEYS:
                 v = e[c]
                 if v == "gut":
                     day["cat"][c][0] += 1
+                    if nm:
+                        day["cf"][c][0].append(nm)
                 elif v == "neutral":
                     day["cat"][c][1] += 1
                 elif v == "schlecht":
                     day["cat"][c][2] += 1
+                    if nm:
+                        day["cf"][c][1].append(nm)
         days = [bydate[k] for k in sorted(bydate)]
         data[person] = {
             "accent": cfg["accent"], "accent2": cfg["accent2"],
@@ -393,6 +410,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .check.green .ck-status{color:var(--green)} .check.amber .ck-status{color:var(--amber)} .check.red .ck-status{color:var(--red)}
   .check .ck-detail{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
   .check .ck-help{font-size:11px;color:var(--faint);margin-top:9px;line-height:1.35}
+  /* --- Hover-Quickinfo: Top-Lebensmittel pro Kategorie --- */
+  .check.has-tip{cursor:help}
+  .check .ck-tip{position:absolute;inset:0;background:var(--panel2);padding:13px 15px;z-index:3;
+    opacity:0;pointer-events:none;transition:opacity .18s ease;overflow:auto;display:flex;gap:14px}
+  .check.has-tip:hover .ck-tip,.check.has-tip:focus-within .ck-tip{opacity:1;pointer-events:auto}
+  .check .ck-tip .col{flex:1;min-width:0}
+  .check .ck-tip .tt{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:4px}
+  .check .ck-tip .tt.pos{color:var(--green)}
+  .check .ck-tip .tt.neg{color:var(--red)}
+  .check .ck-tip ul{list-style:none;margin:0;padding:0}
+  .check .ck-tip li{font-size:11.5px;color:var(--text);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .check .ck-tip li small{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .check .ck-tip .none{font-size:11px;color:var(--faint)}
   .micro-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
   .micro-head h2{font-family:var(--display);font-weight:600;font-size:18px}
   .micro-head .mh-sub{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px}
@@ -612,13 +642,38 @@ function nWindowDays(u){
   return u.days.filter(x=>x.d>=cut);
 }
 function micColor(p){ return p>=MIC_GREEN?'green':(p>=MIC_AMBER?'amber':'red'); }
-function checkCard(name, cls, status, detail, help, i){
-  return `<div class="check ${cls} stagger" style="animation-delay:${(0.02+0.03*i).toFixed(2)}s">
+function topFoods(windowDays){
+  /* pro Kategorie: Haeufigkeit je Lebensmittel zaehlen, Top 3 positiv + Top 3 negativ */
+  const out={};
+  CATS.forEach(c=>{
+    const pos={},neg={};
+    windowDays.forEach(day=>{
+      const f=(day.cf&&day.cf[c.key])||[[],[]];
+      f[0].forEach(n=>pos[n]=(pos[n]||0)+1);
+      f[1].forEach(n=>neg[n]=(neg[n]||0)+1);
+    });
+    const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,3);
+    out[c.key]={pos:top(pos),neg:top(neg)};
+  });
+  return out;
+}
+function tipHtml(t){
+  const li=a=>a.length
+    ?'<ul>'+a.map(([n,k])=>'<li>'+n+(k>1?' <small>\\u00d7'+k+'</small>':'')+'</li>').join('')+'</ul>'
+    :'<div class="none">keine</div>';
+  return '<div class="ck-tip">'
+       +'<div class="col"><div class="tt pos">\\u25b2 Top 3</div>'+li(t.pos)+'</div>'
+       +'<div class="col"><div class="tt neg">\\u25bc Flop 3</div>'+li(t.neg)+'</div>'
+       +'</div>';
+}
+function checkCard(name, cls, status, detail, help, i, tip){
+  return `<div class="check ${cls}${tip?' has-tip':''} stagger" style="animation-delay:${(0.02+0.03*i).toFixed(2)}s"${tip?' tabindex="0"':''}>
     <div class="topbar"></div>
     <div class="ck-head"><span class="ck-dot"></span><span class="ck-name">${name}</span></div>
     <div class="ck-status">${status}</div>
     <div class="ck-detail">${detail}</div>
     <div class="ck-help">${help}</div>
+    ${tip||''}
   </div>`;
 }
 function renderNutri(){
@@ -662,6 +717,7 @@ function renderNutri(){
     CATS.forEach(c=>{ const v=day.cat[c.key]||[0,0,0]; votes[c.key][0]+=v[0]; votes[c.key][1]+=v[1]; votes[c.key][2]+=v[2]; });
   });
   const avg={}; Object.keys(sum).forEach(k=>avg[k]=sum[k]/nDays);
+  const foods=topFoods(wd);
 
   let checksHtml='';
   CATS.forEach((c,i)=>{
@@ -674,7 +730,7 @@ function renderNutri(){
       status = cls==='green'?'Gut':(cls==='amber'?'Okay':'Kritisch');
       detail = Math.round(score)+' / 100 \\u00b7 '+v[0]+'/'+v[1]+'/'+v[2]+' (g/n/s)';
     }
-    checksHtml += checkCard(c.key, cls, status, detail, c.help, i);
+    checksHtml += checkCard(c.key, cls, status, detail, c.help, i, tipHtml(foods[c.key]));
   });
   (function(){
     const ch=avg["Cholesterin (mg)"];
@@ -701,7 +757,7 @@ function renderNutri(){
   }).join('');
 
   C.innerHTML = timebar + `
-    <div class="sec-title stagger"><h2>Gesundheits-Checkpoints</h2><span class="hint">Ampel im gewaehlten Zeitfenster</span></div>
+    <div class="sec-title stagger"><h2>Gesundheits-Checkpoints</h2><span class="hint">Ampel im gewaehlten Zeitfenster \\u00b7 Hover zeigt Top-Lebensmittel</span></div>
     <div class="checks">${checksHtml}</div>
     <div class="panel stagger" style="animation-delay:.10s">
       <div class="micro-head">
