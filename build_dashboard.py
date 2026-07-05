@@ -15,11 +15,13 @@ Env:
 """
 
 import os
+import re
 import sys
 import json
 import datetime
 import urllib.request
 import urllib.error
+from collections import Counter, defaultdict
 
 # ----------------------------------------------------------------------------
 # Konfiguration
@@ -117,13 +119,127 @@ def date_start(props, name):
 
 
 def title_text(props, name):
-    """Titel-Property als Klartext, Mengenangabe in Klammern am Ende entfernt."""
+    """Titel-Property als Klartext."""
     p = props.get(name) or {}
     arr = p.get("title") or []
     t = "".join(x.get("plain_text", "") for x in arr).strip()
-    if t.endswith(")") and " (" in t:
-        t = t.rsplit(" (", 1)[0]
     return t or None
+
+
+# ----------------------------------------------------------------------------
+# Lebensmittel-Namen clustern (nur fuer Top/Flop-Anzeige; Naehrstoff-Summen
+# rechnen weiter ueber die Zahlenspalten und bleiben unberuehrt).
+# "100ml Milch 1,8%" == "Milch 1,8% (250ml)" == "Milch fettarm" usw.
+# ----------------------------------------------------------------------------
+_PARENS = re.compile(r"\s*\([^)]*\)")
+_NUMUNIT = re.compile(r"^(?:~?\d+(?:[.,]\d+)?|[½¼¾⅓⅔⅛])\s*(?:x|g|kg|ml|l)?$", re.I)
+_UNIT_WORDS = {
+    "g", "kg", "ml", "l", "el", "tl", "x", "st", "stk", "stück", "stücke",
+    "scheibe", "scheiben", "portion", "portionen", "packung", "packungen",
+    "kugel", "kugeln", "hand", "hände", "handvoll", "löffel", "teller",
+    "becher", "glas", "gläser", "dose", "dosen", "riegel", "tasse", "tassen",
+    "prise", "prisen", "paar", "ein", "eine", "achtel", "viertel",
+}
+_SIZE_WORDS = {
+    "klein", "kleine", "kleiner", "kleines", "groß", "große", "großer",
+    "großes", "gross", "grosse", "halbe", "halber", "halbes", "gehäuft",
+    "gehäufte", "abgepackte", "abgepackter", "mini",
+}
+# Manuell gepflegte Cluster (links: Varianten, rechts: Anzeigename).
+# Bei neuen Dubletten in den Tops/Flops hier einfach eine Zeile ergaenzen.
+_ALIAS_SRC = {
+    "eier": "Ei", "eier in wenig öl": "Ei", "ei mit ölspray": "Ei",
+    "spiegeleier": "Spiegelei", "espressi": "Espresso",
+    "milch": "Milch (fettarm)", "milch fettarm": "Milch (fettarm)",
+    "fettarme milch": "Milch (fettarm)", "milch 1,5%": "Milch (fettarm)",
+    "milch 1,8%": "Milch (fettarm)",
+    "joghurt": "Joghurt (fettarm)", "joghurt fettarm": "Joghurt (fettarm)",
+    "fettarmer joghurt": "Joghurt (fettarm)", "joghurt 1,5%": "Joghurt (fettarm)",
+    "joghurt 1,8%": "Joghurt (fettarm)", "naturjoghurt": "Joghurt (fettarm)",
+    "naturjoghurt 1,8%": "Joghurt (fettarm)",
+    "skyr": "Skyr", "arla skyr": "Skyr",
+    "biscoff": "Biscoff Creme", "biscoff creme": "Biscoff Creme",
+    "lotus biscoff creme": "Biscoff Creme",
+    "biscoff eis am stiel": "Biscoff Eis",
+    "esn clear whey zitrone": "ESN Clear Whey Zitrone",
+    "esn clearwhey zitrone": "ESN Clear Whey Zitrone",
+    "esn isoclear zitrone": "ESN Clear Whey Zitrone",
+    "finello high protein": "Finello Mozzarella",
+    "finello high protein mozzarella": "Finello Mozzarella",
+    "finello protein mozzarella": "Finello Mozzarella",
+    "finello mozzarella": "Finello Mozzarella",
+    "käse light": "Käse light", "light-käse": "Käse light",
+    "käseaufschnitt leicht": "Käse light", "käseaufschnitt light": "Käse light",
+    "käse fettreduziert": "Käse light",
+    "gouda lite": "Gouda light", "gouda light": "Gouda light",
+    "mozzarella light": "Mozzarella light", "light mozzarella": "Mozzarella light",
+    "buko": "Buko Balance", "buko balance": "Buko Balance",
+    "buko balance frischkäse": "Buko Balance",
+    "harzer käse": "Harzer Käse", "quäse harzer käse": "Harzer Käse",
+    "kellogg's tresor müsli": "Kellogg's Tresor",
+    "flat white hafer": "Flat White (Hafermilch)",
+    "flat white hafermilch": "Flat White (Hafermilch)",
+    "flat white mit hafermilch": "Flat White (Hafermilch)",
+    "cappuccino mit hafermilch": "Cappuccino (Hafermilch)",
+    "hafercappuccino": "Cappuccino (Hafermilch)",
+    "hähnchenbrust bio": "Hähnchenbrust",
+    "erdnuss-soja-dip": "Erdnuss-Dip", "erdnussmus-soja-dip": "Erdnuss-Dip",
+    "erdnusssauce": "Erdnuss-Dip",
+    "aioli-paste": "Aioli", "aioli-joghurt-soße": "Aioli-Joghurt-Dip",
+    "ehrmann high protein choco mousse": "Ehrmann Protein Schokomousse",
+    "ehrmann high protein schokomousse": "Ehrmann Protein Schokomousse",
+    "ben & jerry's cookie eis": "Ben & Jerry's Eis",
+    "ben & jerry's eis": "Ben & Jerry's Eis",
+    "nuii eis pekannuss caramel": "Nuii Eis",
+    "joghurtsauce": "Joghurtsoße",
+}
+
+
+def _squash(s):
+    """Vergleichs-Key: kleingeschrieben, ohne Leerzeichen/Bindestriche etc."""
+    return re.sub(r"[^0-9a-zäöüß%]", "", s.casefold())
+
+
+ALIAS_KEY = {}
+ALIAS_DISPLAY = {}
+for _src, _dst in _ALIAS_SRC.items():
+    ALIAS_KEY[_squash(_src)] = _squash(_dst)
+    ALIAS_DISPLAY[_squash(_dst)] = _dst
+
+
+def clean_food_name(t):
+    """Mengen-/Groessenangaben vorne, hinten und in Klammern entfernen."""
+    s = _PARENS.sub("", t).strip()
+    words = s.split()
+    while words:
+        w = words[0].casefold().strip(".")
+        if _NUMUNIT.match(words[0]) or w in _UNIT_WORDS or w in _SIZE_WORDS:
+            words.pop(0)
+        else:
+            break
+    while words and _NUMUNIT.match(words[-1]):
+        words.pop()
+    return " ".join(words) or t.strip()
+
+
+def make_canon(names):
+    """Map: Original-Titel -> kanonischer Anzeigename (geclustert)."""
+    cleaned = {nm: clean_food_name(nm) for nm in set(names)}
+    key_of, variants = {}, defaultdict(Counter)
+    for nm, c in cleaned.items():
+        k = _squash(c)
+        k = ALIAS_KEY.get(k, k)
+        key_of[nm] = k
+        variants[k][ALIAS_DISPLAY.get(k, c)] += 1
+    # Plural -> Singular zusammenfuehren (Bananen->Banane, Wraps->Wrap)
+    redirect = {}
+    for k in list(variants):
+        if k and k[-1] in "sn" and k[:-1] in variants:
+            variants[k[:-1]].update(variants.pop(k))
+            redirect[k] = k[:-1]
+    disp = {k: min(cnt.most_common(), key=lambda t: (-t[1], len(t[0])))[0]
+            for k, cnt in variants.items()}
+    return {nm: disp[redirect.get(k, k)] for nm, k in key_of.items()}
 
 
 # ----------------------------------------------------------------------------
@@ -201,6 +317,7 @@ def build_nutri_data(pages):
 
     data = {}
     for person, cfg in NUTRI_CONFIG.items():
+        canon = make_canon([e["name"] for e in raw[person] if e.get("name")])
         bydate = {}
         for e in raw[person]:
             day = bydate.get(e["d"])
@@ -213,7 +330,7 @@ def build_nutri_data(pages):
             day["n"] += 1
             for k in NUM_KEYS:
                 day["nut"][k] += e[k]
-            nm = e.get("name")
+            nm = canon.get(e.get("name"))
             for c in CAT_KEYS:
                 v = e[c]
                 if v == "gut":
