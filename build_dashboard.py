@@ -132,7 +132,7 @@ def title_text(props, name):
 # "100ml Milch 1,8%" == "Milch 1,8% (250ml)" == "Milch fettarm" usw.
 # ----------------------------------------------------------------------------
 _PARENS = re.compile(r"\s*\([^)]*\)")
-_NUMUNIT = re.compile(r"^(?:~?\d+(?:[.,]\d+)?|[½¼¾⅓⅔⅛])\s*(?:x|g|kg|ml|l)?$", re.I)
+_NUMUNIT = re.compile(r"^(?:~?\d+(?:[.,]\d+)?(?:/\d+)?|[½¼¾⅓⅔⅛])\s*(?:x|g|kg|ml|l)?$", re.I)
 _UNIT_WORDS = {
     "g", "kg", "ml", "l", "el", "tl", "x", "st", "stk", "stück", "stücke",
     "scheibe", "scheiben", "portion", "portionen", "packung", "packungen",
@@ -325,12 +325,16 @@ def build_nutri_data(pages):
                 day = {"d": e["d"], "n": 0,
                        "nut": {k: 0 for k in NUM_KEYS},
                        "cat": {c: [0, 0, 0] for c in CAT_KEYS},
-                       "cf": {c: [[], []] for c in CAT_KEYS}}
+                       "cf": {c: [[], []] for c in CAT_KEYS},
+                       "chol": {}}
                 bydate[e["d"]] = day
             day["n"] += 1
             for k in NUM_KEYS:
                 day["nut"][k] += e[k]
             nm = canon.get(e.get("name"))
+            mg = e.get("Cholesterin (mg)") or 0
+            if nm and mg:
+                day["chol"][nm] = day["chol"].get(nm, 0) + mg
             for c in CAT_KEYS:
                 v = e[c]
                 if v == "gut":
@@ -760,7 +764,7 @@ function nWindowDays(u){
 }
 function micColor(p){ return p>=MIC_GREEN?'green':(p>=MIC_AMBER?'amber':'red'); }
 function topFoods(windowDays){
-  /* pro Kategorie: Haeufigkeit je Lebensmittel zaehlen, Top 3 positiv + Top 3 negativ */
+  /* pro Kategorie: Haeufigkeit je Lebensmittel zaehlen, Top 4 positiv + Flop 4 negativ */
   const out={};
   CATS.forEach(c=>{
     const pos={},neg={};
@@ -769,19 +773,34 @@ function topFoods(windowDays){
       f[0].forEach(n=>pos[n]=(pos[n]||0)+1);
       f[1].forEach(n=>neg[n]=(neg[n]||0)+1);
     });
-    const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,3);
+    const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,4);
     out[c.key]={pos:top(pos),neg:top(neg)};
   });
   return out;
+}
+function topChol(windowDays){
+  /* groesste Cholesterin-Quellen (mg summiert) im Zeitfenster */
+  const m={};
+  windowDays.forEach(day=>{
+    const c=day.chol||{};
+    Object.keys(c).forEach(n=>m[n]=(m[n]||0)+c[n]);
+  });
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,4);
 }
 function tipHtml(t){
   const li=a=>a.length
     ?'<ul>'+a.map(([n,k])=>'<li>'+n+(k>1?' <small>\\u00d7'+k+'</small>':'')+'</li>').join('')+'</ul>'
     :'<div class="none">keine</div>';
   return '<div class="ck-tip">'
-       +'<div class="col"><div class="tt pos">\\u25b2 Top 3</div>'+li(t.pos)+'</div>'
-       +'<div class="col"><div class="tt neg">\\u25bc Flop 3</div>'+li(t.neg)+'</div>'
+       +'<div class="col"><div class="tt pos">\\u25b2 Top 4</div>'+li(t.pos)+'</div>'
+       +'<div class="col"><div class="tt neg">\\u25bc Flop 4</div>'+li(t.neg)+'</div>'
        +'</div>';
+}
+function tipCholHtml(items){
+  const li=items.length
+    ?'<ul>'+items.map(([n,mg])=>'<li>'+n+' <small>'+Math.round(mg).toLocaleString('de')+' mg</small></li>').join('')+'</ul>'
+    :'<div class="none">keine</div>';
+  return '<div class="ck-tip"><div class="col"><div class="tt neg">\\u25bc Top 4 Quellen</div>'+li+'</div></div>';
 }
 function checkCard(name, cls, status, detail, help, i, tip){
   return `<div class="check ${cls}${tip?' has-tip':''} stagger" style="animation-delay:${(0.02+0.03*i).toFixed(2)}s"${tip?' tabindex="0"':''}>
@@ -854,7 +873,7 @@ function renderNutri(){
     const cls = ch<=CHOL_GREEN?'green':(ch<=CHOL_AMBER?'amber':'red');
     const status = cls==='green'?'Gut':(cls==='amber'?'Okay':'Hoch');
     const detail = '\\u00d8 '+Math.round(ch).toLocaleString('de')+' mg/Tag (Ziel \\u2264'+CHOL_GREEN+')';
-    checksHtml += checkCard('Cholesterin', cls, status, detail, 'weniger ist besser - Ziel unter '+CHOL_GREEN+' mg/Tag', 3);
+    checksHtml += checkCard('Cholesterin', cls, status, detail, 'weniger ist besser - Ziel unter '+CHOL_GREEN+' mg/Tag', 3, tipCholHtml(topChol(wd)));
   })();
 
   let micros=Object.keys(u.ref).map(k=>{
