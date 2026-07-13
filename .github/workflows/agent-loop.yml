@@ -22,6 +22,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Claude Code installieren
+        run: npm install -g @anthropic-ai/claude-code
+
       - name: Playwright installieren
         run: |
           pip install playwright
@@ -30,7 +37,7 @@ jobs:
       - name: Loop ausführen
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          CLAUDE_TOKEN: ${{ secrets.CLAUDE_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python loop/run_loop.py
 
       - name: Zustand committen
