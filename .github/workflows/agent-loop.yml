@@ -30,7 +30,7 @@ jobs:
       - name: Loop ausführen
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_TOKEN: ${{ secrets.CLAUDE_TOKEN }}
         run: python loop/run_loop.py
 
       - name: Zustand committen
