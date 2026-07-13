@@ -5,7 +5,7 @@ import os, json, time, urllib.request, urllib.error, datetime, pathlib
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 NOTION_VERSION = "2025-09-03"
-ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-20250514")
 
 DS_TAGES = "a748d265-3bbe-448b-b4e8-c8111c208c46"      # Tagesübersicht
 DS_ANALYSE = "be09a702-364a-4f0f-9548-5f4f32092dee"    # Lebensmittel-Analyse / Nährstoffbrudi
