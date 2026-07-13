@@ -87,8 +87,12 @@ def _messages(payload):
         "https://api.anthropic.com/v1/messages", data=json.dumps(payload).encode(),
         headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01",
                  "Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=180) as r:
-        data = json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=180) as r:
+            data = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        print("Anthropic API error", e.code, e.read().decode())
+        raise
     return "".join(b["text"] for b in data["content"] if b["type"] == "text")
 
 def claude(system, user, max_tokens=4000):
