@@ -67,6 +67,10 @@ REF = {
 NUM_KEYS = list(REF["m"].keys()) + ["Cholesterin (mg)"]
 CAT_KEYS = ["Darmgesundheit", "Low FODMAP", "Säure-Base"]
 
+# Erlaubte relative Abweichung zwischen Tages-Total (Tagesuebersicht) und der
+# Summe der Einzelposten (Lebensmittel-Analyse). Darueber -> Warn-Flag im Build.
+KCAL_TOL = 0.05
+
 
 # ----------------------------------------------------------------------------
 # Notion-Abfrage (mit Pagination) - parametrisiert auf die Datenquelle
@@ -124,6 +128,55 @@ def title_text(props, name):
     arr = p.get("title") or []
     t = "".join(x.get("plain_text", "") for x in arr).strip()
     return t or None
+
+
+def checkbox(props, name):
+    p = props.get(name) or {}
+    return bool(p.get("checkbox"))
+
+
+# ----------------------------------------------------------------------------
+# Konsistenzpruefung: Tages-Total (Tagesuebersicht) vs. Einzelposten-Summe
+# (Lebensmittel-Analyse). Deckt Erfassungsfehler frueh im Build auf, ohne den
+# Build abzubrechen - es werden nur Warnungen ausgegeben und Tage markiert.
+# ----------------------------------------------------------------------------
+def analyse_kcal_by_day(nutri_pages):
+    """Pro (Person, Datum): Summe der Einzelposten-Kalorien aus der Analyse-DB."""
+    by_day = defaultdict(float)
+    for pg in nutri_pages:
+        props = pg.get("properties", {})
+        if checkbox(props, "Duplikat"):
+            continue
+        person = select_name(props, "Person")
+        d = date_start(props, "Datum")
+        if person is None or d is None:
+            continue
+        by_day[(person, d)] += num(props, "Kalorien (kcal)") or 0
+    return by_day
+
+
+def check_kcal_consistency(kcal_pages, analyse_kcal):
+    """Vergleicht Tages-Total mit der Einzelposten-Summe pro (Person, Tag).
+    Gibt eine sortierte Liste von Warntexten zurueck (kein Build-Abbruch)."""
+    warns = []
+    for pg in kcal_pages:
+        props = pg.get("properties", {})
+        person = select_name(props, "Person")
+        d = date_start(props, "Datum")
+        total = num(props, "Kalorien (kcal)")
+        if person not in PERSON_CONFIG or d is None or total is None:
+            continue
+        key = (person, d)
+        if key in analyse_kcal:
+            s = analyse_kcal[key]
+            if s and abs(s - total) / max(total, 1) > KCAL_TOL:
+                warns.append("%s %s: Total %d != Analyse-Summe %d kcal"
+                             % (person, d, round(total), round(s)))
+        else:
+            warns.append("%s %s: keine Lebensmittel-Analyse-Zeilen (Trennung fehlt)"
+                         % (person, d))
+    warns.sort()
+    return warns
 
 
 # ----------------------------------------------------------------------------
@@ -245,8 +298,12 @@ def make_canon(names):
 # ----------------------------------------------------------------------------
 # Kalorien-Daten aufbereiten
 # ----------------------------------------------------------------------------
-def build_kcal_data(pages):
+def build_kcal_data(pages, analyse_kcal=None):
+    analyse_kcal = analyse_kcal or {}
     raw = {k: [] for k in PERSON_CONFIG}
+    # Tage, die in Notion existieren, aber keine Kalorien tragen (v.a. Leni):
+    # werden NICHT gewertet, aber gezaehlt und im Dashboard gekennzeichnet.
+    skipped = {k: 0 for k in PERSON_CONFIG}
     for pg in pages:
         props = pg.get("properties", {})
         person = select_name(props, "Person")
@@ -254,7 +311,10 @@ def build_kcal_data(pages):
             continue
         d = date_start(props, "Datum")
         kcal = num(props, "Kalorien (kcal)")
-        if d is None or kcal is None:
+        if d is None:
+            continue
+        if kcal is None:
+            skipped[person] += 1
             continue
         raw[person].append({
             "d": d,
@@ -270,8 +330,18 @@ def build_kcal_data(pages):
     data = {}
     for person, cfg in PERSON_CONFIG.items():
         entries = sorted(raw[person], key=lambda x: x["d"])
-        days = [{"d": e["d"], "kcal": e["kcal"], "p": e["p"], "c": e["c"], "f": e["f"]}
-                for e in entries]
+        days = []
+        mismatch = 0
+        for e in entries:
+            day = {"d": e["d"], "kcal": e["kcal"], "p": e["p"], "c": e["c"], "f": e["f"]}
+            s = analyse_kcal.get((person, e["d"]))
+            if s and abs(s - e["kcal"]) / max(e["kcal"], 1) > KCAL_TOL:
+                day["flag"] = True
+                mismatch += 1
+            days.append(day)
+        # Fallback auf Standardwerte, wenn Notion die Spalte durchgehend leer laesst.
+        goal_from_data = any(e["goalIntake"] for e in entries)
+        ziel_from_data = any(e["zielWeight"] for e in entries)
         goal = next((e["goalIntake"] for e in reversed(entries) if e["goalIntake"]), cfg["goalIntake"])
         weights = [e["weight"] for e in entries if e["weight"] is not None]
         weight = weights[-1] if weights else None
@@ -290,6 +360,14 @@ def build_kcal_data(pages):
             "zielWeight": ziel, "greenBuf": cfg["greenBuf"],
             "anchorWeight": anchor_weight, "anchorDate": anchor_date,
             "days": days,
+            "quality": {
+                "trackedDays": len(days),
+                "skippedDays": skipped[person],
+                "mismatchDays": mismatch,
+                "goalFromData": goal_from_data,
+                "zielFromData": ziel_from_data,
+                "weightFromData": bool(weights),
+            },
         }
     return data
 
@@ -363,8 +441,19 @@ def main():
     if not TOKEN:
         sys.stderr.write("Fehler: NOTION_TOKEN ist nicht gesetzt.\n")
         sys.exit(1)
-    kcal = build_kcal_data(notion_query_all(DATA_SOURCE_KCAL))
-    nutri = build_nutri_data(notion_query_all(DATA_SOURCE_NUTRI))
+    kcal_pages = notion_query_all(DATA_SOURCE_KCAL)
+    nutri_pages = notion_query_all(DATA_SOURCE_NUTRI)
+    analyse_kcal = analyse_kcal_by_day(nutri_pages)
+    kcal = build_kcal_data(kcal_pages, analyse_kcal)
+    nutri = build_nutri_data(nutri_pages)
+
+    # Warn-Flag: Tages-Total vs. Einzelposten-Summe (bricht den Build nicht ab).
+    warns = check_kcal_consistency(kcal_pages, analyse_kcal)
+    if warns:
+        sys.stderr.write("WARNUNG: %d Tag(e) mit Total<->Analyse-Abweichung:\n" % len(warns))
+        for w in warns:
+            sys.stderr.write("  - %s\n" % w)
+
     today_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     today_de = datetime.datetime.now(datetime.timezone.utc).strftime("%d.%m.%Y")
     html = (HTML_TEMPLATE
@@ -377,6 +466,9 @@ def main():
     print("index.html geschrieben. Kalorien Denis %d / Leni %d | Naehrstoffe Denis %d / Leni %d"
           % (len(kcal["Denis"]["days"]), len(kcal["Leni"]["days"]),
              len(nutri["Denis"]["days"]), len(nutri["Leni"]["days"])))
+    skipped_total = sum(kcal[p]["quality"]["skippedDays"] for p in PERSON_CONFIG)
+    print("Konsistenz: %d Warnung(en) Total<->Analyse, %d Tag(e) ohne Kalorien uebersprungen"
+          % (len(warns), skipped_total))
 
 
 # ----------------------------------------------------------------------------
@@ -451,6 +543,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .goals .gv.accent{color:var(--accent)}
   .goals .gv.macro{font-size:13px}
   .goals .gv.macro b{color:var(--text);font-weight:500}
+  .goals .gv .std{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:4px}
+  .goals .dq-note{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);
+    font-family:var(--mono);font-size:10.5px;line-height:1.65;color:var(--amber)}
+  .goals .dq-note .dqh{color:var(--faint);letter-spacing:.14em;text-transform:uppercase;font-size:9.5px;display:block;margin-bottom:5px}
+  .goals .dq-note div{color:var(--muted)}
+  .goals .dq-note b{color:var(--text);font-weight:500}
   .progress{margin-bottom:16px;padding-bottom:15px;border-bottom:1px dashed var(--border)}
   .progress .prow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
   .progress .pk{font-size:13px;color:var(--text);font-weight:500}
@@ -485,6 +583,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .dvg .fill.red{background:linear-gradient(90deg,rgba(255,92,87,.9),rgba(255,92,87,.4))}
   .dvg .dval{font-family:var(--mono);font-size:12px;font-weight:500;white-space:nowrap;text-align:left}
   .dvg .dval.green{color:var(--green)} .dvg .dval.amber{color:var(--amber)} .dvg .dval.red{color:var(--red)}
+  .dvg .dflag{color:var(--amber);font-size:11px;margin-left:5px;cursor:help}
   .metric-toggle{display:flex;gap:5px;flex-wrap:nowrap}
   .metric-toggle button{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--muted);background:var(--panel2);
     border:1px solid var(--border);padding:7px 12px;border-radius:9px;cursor:pointer;transition:.2s;white-space:nowrap}
@@ -648,6 +747,13 @@ function renderKcal(){
     return;
   }
   const t=targets(u);
+  const q=u.quality||{};
+  const dqItems=[];
+  if(q.skippedDays) dqItems.push('<div><b>'+q.skippedDays+'</b> Tag(e) ohne Kalorien-Eintrag \\u2013 nicht gewertet</div>');
+  if(q.mismatchDays) dqItems.push('<div><b>'+q.mismatchDays+'</b> Tag(e): Total weicht von Einzelposten-Summe ab</div>');
+  if(q.zielFromData===false) dqItems.push('<div>Zielgewicht ist Standardwert (nicht aus Notion)</div>');
+  if(q.goalFromData===false) dqItems.push('<div>Kalorienziel ist Standardwert (nicht aus Notion)</div>');
+  const dqNote = dqItems.length ? '<div class="dq-note"><span class="dqh">\\u26a0 Datenqualit\\u00e4t</span>'+dqItems.join('')+'</div>' : '';
   const counts={green:0,amber:0,red:0};
   u.days.forEach(x=>counts[classify(u,x.kcal)]++);
   const total=u.days.length, pct=n=>total?Math.round(n/total*100)+'%':'-';
@@ -674,14 +780,15 @@ function renderKcal(){
           <div class="pcap"><b>${Math.round(saved).toLocaleString('de')}</b> / ${totalNeeded.toLocaleString('de')} kcal gespart - noch <b>${daysLeft} Tage</b> bei ${u.deficitTarget} kcal Defizit/Tag</div>
         </div>
         <div class="goalrow"><span class="gk">Ziel</span><span class="gv">Abnehmen</span></div>
-        <div class="goalrow"><span class="gk">Kalorienziel</span><span class="gv accent">${u.goalIntake.toLocaleString('de')} <small>kcal</small></span></div>
+        <div class="goalrow"><span class="gk">Kalorienziel</span><span class="gv accent">${u.goalIntake.toLocaleString('de')} <small>kcal</small>${q.goalFromData===false?'<span class="std">Std.</span>':''}</span></div>
         <div class="goalrow"><span class="gk">Geplantes Defizit</span><span class="gv">${u.deficitTarget.toLocaleString('de')} <small>kcal</small></span></div>
         <div class="goalrow"><span class="gk">Erhaltungsbedarf</span><span class="gv">${maintenance(u).toLocaleString('de')} <small>kcal</small></span></div>
         <div class="goalrow"><span class="gk">Makro-Ziel</span><span class="gv macro"><b>${t.p}</b>P - <b>${t.f}</b>F - <b>${t.c}</b>C <small>g</small></span></div>
         <div class="goalrow"><span class="gk">Startgewicht</span><span class="gv">${u.startWeight!=null?u.startWeight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
         <div class="goalrow"><span class="gk">Aktuelles Gewicht</span><span class="gv">${u.weight!=null?u.weight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
-        <div class="goalrow"><span class="gk">Zielgewicht</span><span class="gv">${u.zielWeight!=null?u.zielWeight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
+        <div class="goalrow"><span class="gk">Zielgewicht</span><span class="gv">${u.zielWeight!=null?u.zielWeight.toLocaleString('de')+' <small>kg</small>':'-'}${q.zielFromData===false?'<span class="std">Std.</span>':''}</span></div>
         <div class="goalrow"><span class="gk">Letzter Eintrag</span><span class="gv" style="font-size:14px">${fmtDay(u.days[u.days.length-1].d)}</span></div>
+        ${dqNote}
       </div>
       <div class="kpis">
         <div class="kpi green stagger" style="animation-delay:.06s"><div class="bar"></div><div class="num">${counts.green}</div><div class="cap">Ziel erreicht</div><div class="sub">im gruenen Bereich</div><div class="pct">${pct(counts.green)} der Tage</div></div>
@@ -700,9 +807,10 @@ function renderKcal(){
           const w=Math.min(Math.abs(diff)/maxAbs*48,48);
           const style=diff<=0?`right:50%;width:${w}%`:`left:50%;width:${w}%`;
           const sign=diff>0?'+':'';
+          const flag=x.flag?' <span class="dflag" title="Tages-Total weicht von der Einzelposten-Summe (Analyse) ab">\\u26a0</span>':'';
           return `<div class="drow"><div class="dday">${fmtDay(x.d)}</div>
             <div class="track"><div class="zero"></div><div class="fill ${cls}" style="${style}"></div></div>
-            <div class="dval ${cls}">${sign}${diff} kcal</div></div>`;
+            <div class="dval ${cls}">${sign}${diff} kcal${flag}</div></div>`;
         }).join('')}
       </div>
     </div>
