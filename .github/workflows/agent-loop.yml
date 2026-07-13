@@ -2,11 +2,11 @@ name: Kalorienbrudi Agent-Loop
 
 on:
   schedule:
-    - cron: "0 5 * * *"      # täglich 05:00 UTC (07:00 dt. Sommerzeit)
-  workflow_dispatch:          # manuell auslösbar
+    - cron: "0 5 * * *" # täglich 05:00 UTC (07:00 dt. Sommerzeit)
+  workflow_dispatch: # manuell auslösbar
 
 permissions:
-  contents: write             # Zustand zurück ins Repo committen
+  contents: write # Zustand zurück ins Repo committen
 
 concurrency:
   group: agent-loop
@@ -42,8 +42,12 @@ jobs:
 
       - name: Zustand committen
         run: |
-          git config user.name  "kalorienbrudi-bot"
+          git config user.name "kalorienbrudi-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add loop/reports loop/proposals loop/state.json loop/decisions.md loop/backlog.md loop/TODO-*.md build_dashboard.py 2>/dev/null || true
-          git commit -m "Agent-Loop $(date +%F)" || echo "nichts zu committen"
-          git push
+          git add -A ':!loop/__pycache__'
+          if git diff --cached --quiet; then
+            echo "nichts zu committen"
+          else
+            git commit -m "Agent-Loop $(date +%F)"
+            git push
+          fi
