@@ -20,6 +20,11 @@
       "date": "2026-07-14",
       "data_critical": 73,
       "dashboard_critical": 1
+    },
+    {
+      "date": "2026-07-14",
+      "data_critical": 73,
+      "dashboard_critical": 0
     }
   ]
 }

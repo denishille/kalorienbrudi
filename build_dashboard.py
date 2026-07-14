@@ -210,6 +210,56 @@ def check_kcal_consistency(kcal_pages, analyse_kcal):
 
 
 # ----------------------------------------------------------------------------
+# Sammelposten-Heuristik: verdaechtige, nicht getrennte Analyse-Zeilen erkennen.
+# Zusammengesetzte Gerichte ("Bowl", "Pad Krapao Basis", "... mit ...") sollten
+# in Einzel-Zutaten aufgeteilt sein, sonst sind die Makros pro Zutat nicht
+# belastbar. Marken-/Fertigprodukte bleiben bewusst EINE Zeile (kein Split).
+# Das Flag bricht den Build nicht ab - es warnt und wird im Dashboard angezeigt.
+# ----------------------------------------------------------------------------
+COMPOSITE_HINTS = [" mit ", " + ", " und ", " auf ", "bowl", "gratin", "auflauf",
+                   "pfanne", "salat mit", "teller", "basis", "pad krapao",
+                   "curry", "wok", "eintopf", "pizza", "burger", "sandwich"]
+# Marken/Fertigprodukte: bleiben EINE Zeile, nicht als Sammelposten flaggen.
+BRAND_HINTS = ["rewe", "ehrmann", "gustavo", "nuii", "ben & jerry", "koelln",
+               "kellogg", "biscoff", "finello", "buko", "billie green", "arla",
+               "oakberry", "esn", "clearwhey", "clear whey", "fritz", "toblerone",
+               "langnese", "prep my meal", "kinder", "oreo", "taifun", "bonduelle",
+               "koro", "ppura", "skyr", "harzer", "riegel", "mousse"]
+
+
+def looks_like_composite(name):
+    """True, wenn der Name nach einem zusammengesetzten Gericht/Sammelposten
+    aussieht und NICHT als Markenprodukt erkannt wird."""
+    low = (name or "").lower()
+    if not low:
+        return False
+    if any(b in low for b in BRAND_HINTS):
+        return False
+    return any(k in low for k in COMPOSITE_HINTS) or low.count(",") >= 1
+
+
+def check_composite_items(nutri_pages):
+    """Sammelt verdaechtige Sammelposten pro Person. Gibt (warns, counts) zurueck:
+    warns = sortierte Warntexte (kein Build-Abbruch), counts = {Person: Anzahl}."""
+    warns, counts = [], defaultdict(int)
+    for pg in nutri_pages:
+        props = pg.get("properties", {})
+        if checkbox(props, "Duplikat"):
+            continue
+        person = select_name(props, "Person")
+        name = title_text(props, "Lebensmittel")
+        d = date_start(props, "Datum")
+        if person not in NUTRI_CONFIG or not name:
+            continue
+        if looks_like_composite(name):
+            counts[person] += 1
+            warns.append("%s %s: '%s' evtl. Sammelposten - in Einzel-Zutaten aufteilen?"
+                         % (person, d or "?", name))
+    warns.sort()
+    return warns, counts
+
+
+# ----------------------------------------------------------------------------
 # Lebensmittel-Namen clustern (nur fuer Top/Flop-Anzeige; Naehrstoff-Summen
 # rechnen weiter ueber die Zahlenspalten und bleiben unberuehrt).
 # "100ml Milch 1,8%" == "Milch 1,8% (250ml)" == "Milch fettarm" usw.
@@ -406,7 +456,8 @@ def build_kcal_data(pages, analyse_kcal=None):
 # Naehrstoff-Daten aufbereiten: pro Person -> pro Tag aggregiert
 # cf = pro Kategorie [positive Lebensmittel, negative Lebensmittel] des Tages
 # ----------------------------------------------------------------------------
-def build_nutri_data(pages):
+def build_nutri_data(pages, composite_counts=None):
+    composite_counts = composite_counts or {}
     raw = {k: [] for k in NUTRI_CONFIG}
     for pg in pages:
         props = pg.get("properties", {})
@@ -460,6 +511,9 @@ def build_nutri_data(pages):
             "accent": cfg["accent"], "accent2": cfg["accent2"],
             "ref": REF[cfg["sex"]],
             "days": days,
+            "quality": {
+                "compositeItems": composite_counts.get(person, 0),
+            },
         }
     return data
 
@@ -474,8 +528,9 @@ def main():
     kcal_pages = notion_query_all(DATA_SOURCE_KCAL)
     nutri_pages = notion_query_all(DATA_SOURCE_NUTRI)
     analyse_kcal = analyse_kcal_by_day(nutri_pages)
+    comp_warns, comp_counts = check_composite_items(nutri_pages)
     kcal = build_kcal_data(kcal_pages, analyse_kcal)
-    nutri = build_nutri_data(nutri_pages)
+    nutri = build_nutri_data(nutri_pages, comp_counts)
 
     # Warn-Flag: Tages-Total vs. Einzelposten-Summe (bricht den Build nicht ab).
     warns = check_kcal_consistency(kcal_pages, analyse_kcal)
@@ -489,6 +544,13 @@ def main():
     if wd_warns:
         sys.stderr.write("WARNUNG: %d Tag(e) mit falschem Wochentag:\n" % len(wd_warns))
         for w in wd_warns:
+            sys.stderr.write("  - %s\n" % w)
+
+    # Warn-Flag: verdaechtige Sammelposten (nicht getrennte Analyse-Zeilen).
+    if comp_warns:
+        sys.stderr.write("WARNUNG: %d verdaechtige(r) Sammelposten (Zutaten-Trennung fehlt evtl.):\n"
+                         % len(comp_warns))
+        for w in comp_warns:
             sys.stderr.write("  - %s\n" % w)
 
     today_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
@@ -505,8 +567,8 @@ def main():
              len(nutri["Denis"]["days"]), len(nutri["Leni"]["days"])))
     skipped_total = sum(kcal[p]["quality"]["skippedDays"] for p in PERSON_CONFIG)
     print("Konsistenz: %d Warnung(en) Total<->Analyse, %d Wochentag-Abweichung(en), "
-          "%d Tag(e) ohne Kalorien uebersprungen"
-          % (len(warns), len(wd_warns), skipped_total))
+          "%d verdaechtige(r) Sammelposten, %d Tag(e) ohne Kalorien uebersprungen"
+          % (len(warns), len(wd_warns), len(comp_warns), skipped_total))
 
 
 # ----------------------------------------------------------------------------
@@ -595,18 +657,44 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .progress .pfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .7s cubic-bezier(.2,.8,.2,1)}
   .progress .pcap{margin-top:8px;font-family:var(--body);font-size:12px;color:var(--muted);line-height:1.5}
   .progress .pcap b{color:var(--text);font-weight:500}
+  /* Semantik-Status (gruen/gelb/rot) - identisch fuer Denis UND Leni */
+  .progress .prow .ppct.green{color:var(--green)} .progress .prow .ppct.amber{color:var(--amber)} .progress .prow .ppct.red{color:var(--red)}
+  .status-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--body);font-weight:500;font-size:11px;
+    padding:4px 10px;border-radius:999px;letter-spacing:.01em;white-space:nowrap}
+  .status-pill .sp-dot{width:7px;height:7px;border-radius:50%}
+  .status-pill.green{color:var(--green);background:rgba(91,209,106,.12)} .status-pill.green .sp-dot{background:var(--green)}
+  .status-pill.amber{color:var(--amber);background:rgba(240,192,74,.12)} .status-pill.amber .sp-dot{background:var(--amber)}
+  .status-pill.red{color:var(--red);background:rgba(255,92,87,.12)} .status-pill.red .sp-dot{background:var(--red)}
+  .progress .prow.pstatus{margin-top:10px;margin-bottom:0}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   @media(max-width:780px){.kpis{grid-template-columns:repeat(2,1fr)}}
-  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px 18px 16px;position:relative;overflow:hidden}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:16px 18px 16px;position:relative;overflow:hidden}
   .kpi .bar{position:absolute;top:0;left:0;width:100%;height:3px}
   .kpi.green .bar{background:var(--green)} .kpi.amber .bar{background:var(--amber)}
   .kpi.red .bar{background:var(--red)} .kpi.total .bar{background:var(--accent)}
-  .kpi .num{font-family:var(--display);font-weight:800;font-size:46px;line-height:1;letter-spacing:-.03em}
+  /* farbiger Akzent (weicher Glow) hinter der Zahl - Status-Signal je Kachel */
+  .kpi .kglow{position:absolute;left:-14px;top:26px;width:104px;height:104px;border-radius:50%;filter:blur(28px);opacity:.16;z-index:0;pointer-events:none}
+  .kpi.green .kglow{background:var(--green)} .kpi.amber .kglow{background:var(--amber)}
+  .kpi.red .kglow{background:var(--red)} .kpi.total .kglow{background:var(--accent)}
+  .kpi .khead{display:flex;justify-content:flex-end;position:relative;z-index:2}
+  .kpi .kicon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:9px}
+  .kpi .kicon svg{width:16px;height:16px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .kpi.green .kicon{background:rgba(91,209,106,.14)} .kpi.green .kicon svg{stroke:var(--green)}
+  .kpi.amber .kicon{background:rgba(240,192,74,.14)} .kpi.amber .kicon svg{stroke:var(--amber)}
+  .kpi.red .kicon{background:rgba(255,92,87,.14)} .kpi.red .kicon svg{stroke:var(--red)}
+  .kpi.total .kicon{background:rgba(77,166,255,.14)} .kpi.total .kicon svg{stroke:var(--accent)}
+  .kpi .num{font-family:var(--display);font-weight:800;font-size:44px;line-height:1;letter-spacing:-.03em;position:relative;z-index:2;margin-top:2px}
   .kpi.green .num{color:var(--green)} .kpi.amber .num{color:var(--amber)}
   .kpi.red .num{color:var(--red)} .kpi.total .num{color:var(--text)}
-  .kpi .cap{margin-top:7px;font-size:13px;color:var(--text);line-height:1.25;font-weight:500}
-  .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.25}
-  .kpi .pct{font-family:var(--body);font-size:12px;color:var(--faint);margin-top:6px}
+  .kpi .cap{margin-top:7px;font-size:13px;color:var(--text);line-height:1.25;font-weight:500;position:relative;z-index:2}
+  .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.25;position:relative;z-index:2}
+  /* Micro-Progress-Bar: Anteil der Tage sofort ablesbar */
+  .kpi .kmicro{margin-top:11px;position:relative;z-index:2}
+  .kpi .kmtrack{height:5px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+  .kpi .kmfill{height:100%;border-radius:4px;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+  .kpi.green .kmfill{background:var(--green)} .kpi.amber .kmfill{background:var(--amber)}
+  .kpi.red .kmfill{background:var(--red)} .kpi.total .kmfill{background:var(--accent)}
+  .kpi .kmpct{display:block;font-family:var(--body);font-size:11.5px;color:var(--faint);margin-top:6px}
   .chart-title{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px}
   .chart-title h2{font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:-.01em}
   .chart-sub{font-size:12.5px;color:var(--muted);margin-bottom:18px}
@@ -710,6 +798,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .wsref{stroke:var(--green);stroke-width:1.5;stroke-dasharray:5 4;opacity:.9}
   .wsreft{fill:var(--green);font-family:var(--mono);font-size:11px;text-anchor:end}
 
+  /* ---- SVG-Gauge (Gesamtdeckung Mikronaehrstoffe) auf der Naehrstoff-Seite ----
+     Echtes Chart-Element, damit die Seite auch bei Leni-Datenluecken rendert. */
+  .cov-gauge{display:flex;align-items:center;gap:20px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px dashed var(--border)}
+  .cov-gauge svg{width:96px;height:96px;flex:none;display:block;overflow:visible}
+  .cov-gauge .cg-ring{fill:none;stroke:var(--panel2);stroke-width:9}
+  .cov-gauge .cg-val{fill:none;stroke-width:9;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dasharray .7s cubic-bezier(.2,.8,.2,1)}
+  .cov-gauge .cg-num{font-family:var(--display);font-weight:800;font-size:21px;fill:var(--text);text-anchor:middle;dominant-baseline:central}
+  .cov-gauge .cg-txt{min-width:0}
+  .cov-gauge .cg-txt h3{font-family:var(--display);font-weight:600;font-size:15px;margin-bottom:4px}
+  .cov-gauge .cg-txt p{font-family:var(--body);font-size:12.5px;color:var(--muted);line-height:1.55}
+  .cov-gauge .cg-txt p b{color:var(--text);font-weight:500}
+
+  /* ---- Advisory-Banner: Zeitfenster-Fallback & Sammelposten-Heuristik ---- */
+  .note-amber{display:flex;align-items:flex-start;gap:10px;background:rgba(240,192,74,.10);
+    border:1px solid rgba(240,192,74,.32);border-radius:12px;padding:11px 15px;margin-bottom:18px;
+    font-family:var(--body);font-size:12.5px;line-height:1.5;color:var(--amber)}
+  .note-amber svg{width:16px;height:16px;flex:none;margin-top:1px;fill:none;stroke:var(--amber);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .note-amber b{color:var(--text);font-weight:500}
+  .note-amber .na-body{color:var(--muted)}
+
   /* ---- Empty-State: einladende Card mit CTA statt toter Leerflaeche ---- */
   .empty-card{display:flex;flex-direction:column;align-items:center;justify-content:center;
     text-align:center;gap:6px;padding:60px 28px;min-height:380px}
@@ -765,6 +873,12 @@ const IC_ADD='<svg class="ec-icon" viewBox="0 0 24 24" fill="none" stroke="curre
 const IC_CLOCK='<svg class="ec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.4 2"/></svg>';
 const IC_PLUS='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
 const IC_EYE='<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+/* KPI-Icons (Status-Signal je Kachel) + Warn-Icon fuer Advisory-Banner */
+const IC_CHECK='<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+const IC_TREND='<svg viewBox="0 0 24 24"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>';
+const IC_UP='<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+const IC_CAL='<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+const IC_WARN='<svg viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
 function emptyCard(icon,title,msg,cta){
   return '<div class="panel empty-card stagger">'+icon
        +'<h2>'+title+'</h2><p>'+msg+'</p>'+(cta||'')+'</div>';
@@ -829,7 +943,11 @@ function renderKcal(){
   const dqNote = dqItems.length ? '<div class="dq-note"><span class="dqh">\\u26a0 Datenqualit\\u00e4t</span>'+dqItems.join('')+'</div>' : '';
   const counts={green:0,amber:0,red:0};
   u.days.forEach(x=>counts[classify(u,x.kcal)]++);
-  const total=u.days.length, pct=n=>total?Math.round(n/total*100)+'%':'-';
+  const total=u.days.length, pctNum=n=>total?Math.round(n/total*100):0, pct=n=>total?pctNum(n)+'%':'-';
+  /* Semantik-Status identisch fuer Denis UND Leni: Anteil gruener Tage. */
+  const greenShare=total?counts.green/total:0;
+  const trackCls=greenShare>=0.5?'green':(greenShare>=0.25?'amber':'red');
+  const trackTxt=trackCls==='green'?'Auf Kurs':(trackCls==='amber'?'Wackelig':'Nachschärfen');
   const last7=u.days.slice(-7).reverse();
   const maxAbs=Math.max(...last7.map(x=>Math.abs(x.kcal-u.goalIntake)),300)*1.04;
   const maint=u.goalIntake+u.deficitTarget;
@@ -848,9 +966,10 @@ function renderKcal(){
       <div class="panel goals stagger" style="animation-delay:.02s">
         <div class="label">Aktuelles Ziel</div>
         <div class="progress">
-          <div class="prow"><span class="pk">Fortschritt zum Ziel</span><span class="ppct">${Math.round(prog)} %</span></div>
+          <div class="prow"><span class="pk">Fortschritt zum Ziel</span><span class="ppct ${trackCls}">${Math.round(prog)} %</span></div>
           <div class="ptrack"><div class="pfill" style="width:${prog}%"></div></div>
           <div class="pcap"><b>${Math.round(saved).toLocaleString('de')}</b> / ${totalNeeded.toLocaleString('de')} kcal gespart - noch <b>${daysLeft} Tage</b> bei ${u.deficitTarget} kcal Defizit/Tag</div>
+          <div class="prow pstatus"><span class="pk">Status</span><span class="status-pill ${trackCls}"><span class="sp-dot"></span>${trackTxt} · ${pct(counts.green)} im grünen Bereich</span></div>
         </div>
         <div class="goalrow"><span class="gk">Ziel</span><span class="gv">Abnehmen</span></div>
         <div class="goalrow"><span class="gk">Kalorienziel</span><span class="gv accent">${u.goalIntake.toLocaleString('de')} <small>kcal</small>${q.goalFromData===false?'<span class="std">Std.</span>':''}</span></div>
@@ -864,10 +983,10 @@ function renderKcal(){
         ${dqNote}
       </div>
       <div class="kpis">
-        <div class="kpi green stagger" style="animation-delay:.06s"><div class="bar"></div><div class="num">${counts.green}</div><div class="cap">Ziel erreicht</div><div class="sub">im grünen Bereich</div><div class="pct">${pct(counts.green)} der Tage</div></div>
-        <div class="kpi amber stagger" style="animation-delay:.10s"><div class="bar"></div><div class="num">${counts.amber}</div><div class="cap">Im Defizit</div><div class="sub">über Ziel, unter Bedarf</div><div class="pct">${pct(counts.amber)} der Tage</div></div>
-        <div class="kpi red stagger" style="animation-delay:.14s"><div class="bar"></div><div class="num">${counts.red}</div><div class="cap">Über Bedarf</div><div class="sub">über Erhaltungsbedarf</div><div class="pct">${pct(counts.red)} der Tage</div></div>
-        <div class="kpi total stagger" style="animation-delay:.18s"><div class="bar"></div><div class="num">${total}</div><div class="cap">Tage getrackt</div><div class="sub">insgesamt</div><div class="pct">seit ${fmtDay(u.days[0].d)}</div></div>
+        <div class="kpi green stagger" style="animation-delay:.06s"><div class="bar"></div><div class="kglow"></div><div class="khead"><span class="kicon">${IC_CHECK}</span></div><div class="num">${counts.green}</div><div class="cap">Ziel erreicht</div><div class="sub">im grünen Bereich</div><div class="kmicro"><div class="kmtrack"><div class="kmfill" style="width:${pctNum(counts.green)}%"></div></div><span class="kmpct">${pct(counts.green)} der Tage</span></div></div>
+        <div class="kpi amber stagger" style="animation-delay:.10s"><div class="bar"></div><div class="kglow"></div><div class="khead"><span class="kicon">${IC_TREND}</span></div><div class="num">${counts.amber}</div><div class="cap">Im Defizit</div><div class="sub">über Ziel, unter Bedarf</div><div class="kmicro"><div class="kmtrack"><div class="kmfill" style="width:${pctNum(counts.amber)}%"></div></div><span class="kmpct">${pct(counts.amber)} der Tage</span></div></div>
+        <div class="kpi red stagger" style="animation-delay:.14s"><div class="bar"></div><div class="kglow"></div><div class="khead"><span class="kicon">${IC_UP}</span></div><div class="num">${counts.red}</div><div class="cap">Über Bedarf</div><div class="sub">über Erhaltungsbedarf</div><div class="kmicro"><div class="kmtrack"><div class="kmfill" style="width:${pctNum(counts.red)}%"></div></div><span class="kmpct">${pct(counts.red)} der Tage</span></div></div>
+        <div class="kpi total stagger" style="animation-delay:.18s"><div class="bar"></div><div class="kglow"></div><div class="khead"><span class="kicon">${IC_CAL}</span></div><div class="num">${total}</div><div class="cap">Tage getrackt</div><div class="sub">insgesamt</div><div class="kmicro"><span class="kmpct">seit ${fmtDay(u.days[0].d)}</span></div></div>
       </div>
     </div>
 
@@ -958,6 +1077,14 @@ function nWindowDays(u){
   return u.days.filter(x=>x.d>=cut);
 }
 function micColor(p){ return p>=MIC_GREEN?'green':(p>=MIC_AMBER?'amber':'red'); }
+function covGauge(cov,color){
+  /* Donut-Gauge als echtes SVG: Ring + gefaerbter Fortschrittsbogen + Prozent. */
+  const r=40, C=2*Math.PI*r, v=Math.max(0,Math.min(100,cov)), dash=v/100*C;
+  return '<svg viewBox="0 0 100 100" role="img" aria-label="Gesamtdeckung Mikron\\u00e4hrstoffe '+Math.round(v)+' Prozent">'
+    +'<circle class="cg-ring" cx="50" cy="50" r="'+r+'"/>'
+    +'<circle class="cg-val" cx="50" cy="50" r="'+r+'" stroke="var(--'+color+')" stroke-dasharray="'+dash.toFixed(1)+' '+C.toFixed(1)+'"/>'
+    +'<text class="cg-num" x="50" y="50">'+Math.round(v)+'%</text></svg>';
+}
 function topFoods(windowDays){
   /* pro Kategorie: Haeufigkeit je Lebensmittel zaehlen, Top 4 positiv + Flop 4 negativ */
   const out={};
@@ -1020,7 +1147,13 @@ function renderNutri(){
     document.getElementById('foot').textContent='Stand: __BUILD_DATE__ · keine Daten';
     return;
   }
-  const wd=nWindowDays(u), nDays=wd.length;
+  /* Fallback bei fehlenden Daten (z.B. Leni-Datenlücken): ist das gewählte
+     Zeitfenster leer, es gibt aber überhaupt Einträge, zeige den gesamten
+     erfassten Zeitraum - so rendert die Auswertung inkl. Chart trotzdem,
+     statt in einer toten Leerfläche zu enden. */
+  let wd=nWindowDays(u), winFallback=false;
+  if(!wd.length && u.days.length){ wd=u.days.slice(); winFallback=true; }
+  const nDays=wd.length;
   const fmtDt=iso=>{const p=iso.split('-');return p[2]+'.'+p[1]+'.'+p[0];};
   const tsub = nDays
     ? fmtDt(wd[0].d)+' \\u2013 '+fmtDt(wd[wd.length-1].d)+' \\u00b7 '+nDays+(nDays===1?' getrackter Tag':' getrackte Tage')+' \\u00b7 \\u00d8 pro Tag'
@@ -1086,6 +1219,24 @@ function renderNutri(){
     const pctRaw=ref>0?(a/ref*100):0, pct=Math.min(100,pctRaw);
     return {name,unit,avg:a,ref,pct,pctRaw,color:micColor(pct)};
   });
+  /* Gesamtdeckung als echtes SVG-Chart (Donut) - garantiert ein gerendertes
+     Chart-Element auf der Nährstoff-Seite, auch bei Leni-Datenlücken. */
+  const cov = micros.length ? micros.reduce((s,m)=>s+m.pct,0)/micros.length : 0;
+  const covColor = micColor(cov);
+  const gaugeSvg = covGauge(cov, covColor);
+  const covGaugeHtml = `<div class="cov-gauge stagger">${gaugeSvg}
+    <div class="cg-txt"><h3>Gesamtdeckung</h3>
+    <p>Ø <b>${Math.round(cov)} %</b> der DGE-Tagesreferenz über ${micros.length} Mikronährstoffe · gedeckelt bei 100 %</p></div></div>`;
+
+  /* Advisory-Banner: Zeitfenster-Fallback (Task 5) + Sammelposten-Heuristik (Task 6) */
+  const winNote = winFallback
+    ? '<div class="note-amber stagger">'+IC_WARN+'<div><b>Keine Einträge in '+NPERIODS[curNPeriod]+'.</b> <span class="na-body">Angezeigt wird der gesamte erfasste Zeitraum, damit die Auswertung nicht leer bleibt.</span></div></div>'
+    : '';
+  const compN=(u.quality&&u.quality.compositeItems)||0;
+  const splitNote = compN
+    ? '<div class="note-amber stagger">'+IC_WARN+'<div><b>'+compN+' m\\u00f6gliche Sammelposten erkannt.</b> <span class="na-body">Zusammengesetzte Gerichte (z.B. Bowls oder \\u201e\\u2026 mit \\u2026\\u201c) sollten in Einzel-Zutaten getrennt werden, damit die Makros pro Zutat belastbar sind.</span></div></div>'
+    : '';
+
   micros.sort((x,y)=> curSort==='worst' ? x.pct-y.pct : y.pct-x.pct);
   let barsHtml=micros.map((m,i)=>{
     const full=m.pct>=99.5?' full':'';
@@ -1096,10 +1247,11 @@ function renderNutri(){
     </div>`;
   }).join('');
 
-  C.innerHTML = timebar + `
+  C.innerHTML = timebar + winNote + splitNote + `
     <div class="sec-title stagger"><h2>Gesundheits-Checkpoints</h2><span class="hint">Ampel im gewählten Zeitfenster \\u00b7 Hover zeigt Top-Lebensmittel</span></div>
     <div class="checks">${checksHtml}</div>
     <div class="panel stagger" style="animation-delay:.10s">
+      ${covGaugeHtml}
       <div class="micro-head">
         <div><h2>Mikronährstoffe</h2><div class="mh-sub">\\u00d8 pro Tag vs. Tagesreferenzwert \\u00b7 gedeckelt bei 100 %</div></div>
         <div class="sortbtns" id="nsort">
