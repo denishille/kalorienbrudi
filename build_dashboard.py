@@ -155,6 +155,36 @@ def analyse_kcal_by_day(nutri_pages):
     return by_day
 
 
+# Deutsche Wochentage (Montag = Index 0), fuer den Datum-vs-Wochentag-Abgleich.
+WD_DE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag",
+         "Freitag", "Samstag", "Sonntag"]
+
+
+def check_weekday_consistency(kcal_pages):
+    """Vergleicht den im Titel 'Tag' erfassten Wochentag mit dem tatsaechlichen
+    Wochentag des Datums (z. B. 'Mittwoch, 21.05.26', obwohl der 21.05. ein
+    Donnerstag ist). Deckt Erfassungsfehler frueh auf und verhindert falsche
+    Zeitachsen. Gibt eine sortierte Liste von Warntexten zurueck - der Build
+    laeuft weiter (nur Warnung, kein Abbruch)."""
+    warns = []
+    for pg in kcal_pages:
+        props = pg.get("properties", {})
+        person = select_name(props, "Person")
+        d = date_start(props, "Datum")
+        tag = title_text(props, "Tag")
+        if person not in PERSON_CONFIG or d is None or not tag:
+            continue
+        try:
+            wd = WD_DE[datetime.date.fromisoformat(d).weekday()]
+        except ValueError:
+            continue
+        if not tag.strip().startswith(wd):
+            warns.append("%s %s: Wochentag '%s' != tatsaechlich %s"
+                         % (person, d, tag, wd))
+    warns.sort()
+    return warns
+
+
 def check_kcal_consistency(kcal_pages, analyse_kcal):
     """Vergleicht Tages-Total mit der Einzelposten-Summe pro (Person, Tag).
     Gibt eine sortierte Liste von Warntexten zurueck (kein Build-Abbruch)."""
@@ -454,6 +484,13 @@ def main():
         for w in warns:
             sys.stderr.write("  - %s\n" % w)
 
+    # Warn-Flag: erfasster Wochentag vs. echtes Datum (bricht den Build nicht ab).
+    wd_warns = check_weekday_consistency(kcal_pages)
+    if wd_warns:
+        sys.stderr.write("WARNUNG: %d Tag(e) mit falschem Wochentag:\n" % len(wd_warns))
+        for w in wd_warns:
+            sys.stderr.write("  - %s\n" % w)
+
     today_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     today_de = datetime.datetime.now(datetime.timezone.utc).strftime("%d.%m.%Y")
     html = (HTML_TEMPLATE
@@ -467,8 +504,9 @@ def main():
           % (len(kcal["Denis"]["days"]), len(kcal["Leni"]["days"]),
              len(nutri["Denis"]["days"]), len(nutri["Leni"]["days"])))
     skipped_total = sum(kcal[p]["quality"]["skippedDays"] for p in PERSON_CONFIG)
-    print("Konsistenz: %d Warnung(en) Total<->Analyse, %d Tag(e) ohne Kalorien uebersprungen"
-          % (len(warns), skipped_total))
+    print("Konsistenz: %d Warnung(en) Total<->Analyse, %d Wochentag-Abweichung(en), "
+          "%d Tag(e) ohne Kalorien uebersprungen"
+          % (len(warns), len(wd_warns), skipped_total))
 
 
 # ----------------------------------------------------------------------------
@@ -545,7 +583,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .goals .gv.macro b{color:var(--text);font-weight:500}
   .goals .gv .std{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:4px}
   .goals .dq-note{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);
-    font-family:var(--mono);font-size:10.5px;line-height:1.65;color:var(--amber)}
+    font-family:var(--body);font-size:12px;line-height:1.6;color:var(--amber)}
   .goals .dq-note .dqh{color:var(--faint);letter-spacing:.14em;text-transform:uppercase;font-size:9.5px;display:block;margin-bottom:5px}
   .goals .dq-note div{color:var(--muted)}
   .goals .dq-note b{color:var(--text);font-weight:500}
@@ -555,7 +593,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .progress .ppct{font-family:var(--mono);font-size:17px;font-weight:500;color:var(--accent)}
   .progress .ptrack{height:10px;background:var(--panel2);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
   .progress .pfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .7s cubic-bezier(.2,.8,.2,1)}
-  .progress .pcap{margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.5}
+  .progress .pcap{margin-top:8px;font-family:var(--body);font-size:12px;color:var(--muted);line-height:1.5}
   .progress .pcap b{color:var(--text);font-weight:500}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   @media(max-width:780px){.kpis{grid-template-columns:repeat(2,1fr)}}
@@ -568,13 +606,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .kpi.red .num{color:var(--red)} .kpi.total .num{color:var(--text)}
   .kpi .cap{margin-top:7px;font-size:13px;color:var(--text);line-height:1.25;font-weight:500}
   .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.25}
-  .kpi .pct{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:6px}
+  .kpi .pct{font-family:var(--body);font-size:12px;color:var(--faint);margin-top:6px}
   .chart-title{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px}
   .chart-title h2{font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:-.01em}
   .chart-sub{font-size:12.5px;color:var(--muted);margin-bottom:18px}
   .dvg{display:flex;flex-direction:column;gap:9px}
   .dvg .drow{display:grid;grid-template-columns:84px 1fr 84px;align-items:center;gap:10px}
-  .dvg .dday{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
+  .dvg .dday{font-family:var(--body);font-size:12.5px;color:var(--muted);text-align:right;white-space:nowrap}
   .dvg .track{position:relative;height:26px;background:var(--panel2);border-radius:7px;overflow:hidden}
   .dvg .zero{position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--faint);opacity:.6;z-index:2}
   .dvg .fill{position:absolute;top:3px;bottom:3px;border-radius:5px;transition:.5s cubic-bezier(.2,.8,.2,1)}
@@ -599,21 +637,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     transition:height .55s cubic-bezier(.2,.8,.2,1),background .3s;min-height:3px}
   .wval{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px}
   .wklabels{display:flex;justify-content:space-around;gap:18px;margin-top:10px}
-  .wklabel{flex:1;max-width:130px;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;line-height:1.35}
+  .wklabel{flex:1;max-width:130px;font-family:var(--body);font-size:12px;color:var(--muted);text-align:center;line-height:1.35}
   .wklabel small{display:block;color:var(--faint);font-size:9.5px}
 
   /* ===================== NAEHRSTOFF-SEITE ===================== */
   .timebar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
     background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px 18px;margin-bottom:20px}
   .timebar .tlabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.20em;text-transform:uppercase;color:var(--faint)}
-  .timebar .tsub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+  .timebar .tsub{font-family:var(--body);font-size:12.5px;color:var(--muted);margin-top:3px}
   .tseg{display:flex;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:4px}
   .tseg button{font-family:var(--display);font-weight:600;font-size:13px;color:var(--muted);background:none;border:none;
     padding:8px 16px;border-radius:8px;cursor:pointer;transition:.2s;white-space:nowrap}
   .tseg button.active{background:var(--accent);color:var(--darkink)}
   .sec-title{display:flex;align-items:baseline;gap:10px;margin:4px 2px 14px}
   .sec-title h2{font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-.01em}
-  .sec-title .hint{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .sec-title .hint{font-family:var(--body);font-size:12.5px;color:var(--faint)}
   .checks{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:30px}
   @media(max-width:820px){.checks{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:460px){.checks{grid-template-columns:1fr}}
@@ -645,7 +683,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .check .ck-tip .none{font-size:11px;color:var(--faint)}
   .micro-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
   .micro-head h2{font-family:var(--display);font-weight:600;font-size:18px}
-  .micro-head .mh-sub{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px}
+  .micro-head .mh-sub{font-family:var(--body);font-size:12.5px;color:var(--faint);margin-top:2px}
   .bars{display:flex;flex-direction:column;gap:11px}
   .brow{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:12px}
   @media(max-width:560px){.brow{grid-template-columns:120px 1fr 44px;gap:8px}}
@@ -665,10 +703,28 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     padding:7px 12px;border-radius:7px;cursor:pointer;transition:.2s;white-space:nowrap}
   .sortbtns button.active{background:var(--accent);color:var(--darkink);font-weight:500}
 
+  /* ---- SVG-Chart (Wochendurchschnitt) ---- */
+  .plot .wsvg{display:block;width:100%;height:auto;overflow:visible}
+  .wsbar{fill:url(#wgrad)}
+  .wsval{fill:var(--text);font-family:var(--mono);font-size:13px;font-weight:500;text-anchor:middle}
+  .wsref{stroke:var(--green);stroke-width:1.5;stroke-dasharray:5 4;opacity:.9}
+  .wsreft{fill:var(--green);font-family:var(--mono);font-size:11px;text-anchor:end}
+
+  /* ---- Empty-State: einladende Card mit CTA statt toter Leerflaeche ---- */
+  .empty-card{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;gap:6px;padding:60px 28px;min-height:380px}
+  .empty-card .ec-icon{width:58px;height:58px;margin-bottom:12px;color:var(--accent);opacity:.92}
+  .empty-card h2{font-family:var(--display);font-weight:800;font-size:23px;letter-spacing:-.01em;color:var(--text)}
+  .empty-card p{font-family:var(--body);font-size:14px;line-height:1.6;color:var(--muted);max-width:380px}
+  .empty-card .ec-cta{margin-top:20px;display:inline-flex;align-items:center;gap:9px;
+    font-family:var(--display);font-weight:600;font-size:14.5px;color:var(--darkink);
+    background:var(--accent);border:none;border-radius:12px;padding:12px 22px;cursor:pointer;
+    text-decoration:none;transition:transform .15s,filter .2s}
+  .empty-card .ec-cta:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .empty-card .ec-cta svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
   /* ---- shared ---- */
-  .empty{text-align:center;padding:48px 20px;color:var(--faint);font-family:var(--mono);font-size:13px;line-height:1.7}
-  .empty b{display:block;font-family:var(--display);font-size:20px;color:var(--muted);margin-bottom:6px}
-  footer{margin-top:22px;text-align:center;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.05em}
+  footer{margin-top:22px;text-align:center;font-family:var(--body);font-size:12px;color:var(--faint);letter-spacing:.02em}
   .stagger{opacity:0;animation:rise .6s cubic-bezier(.2,.8,.2,1) forwards}
   @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 </style>
@@ -701,6 +757,21 @@ const DATA_NUTRI = __DATA_NUTRI__;
 const TODAY = "__TODAY_ISO__";
 
 let curPage='kcal', curUser='Denis';
+
+/* ============================ EMPTY-STATE ============================ */
+/* Zentrierte Card mit Icon + CTA statt toter Leerflaeche. */
+const NOTION_URL='https://www.notion.so/';
+const IC_ADD='<svg class="ec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8.4v7.2M8.4 12h7.2"/></svg>';
+const IC_CLOCK='<svg class="ec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.4 2"/></svg>';
+const IC_PLUS='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
+const IC_EYE='<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+function emptyCard(icon,title,msg,cta){
+  return '<div class="panel empty-card stagger">'+icon
+       +'<h2>'+title+'</h2><p>'+msg+'</p>'+(cta||'')+'</div>';
+}
+function ctaLink(label){
+  return '<a class="ec-cta" href="'+NOTION_URL+'" target="_blank" rel="noopener">'+IC_PLUS+label+'</a>';
+}
 
 /* ============================ KALORIEN ============================ */
 const RATIO={p:0.30,f:0.30,c:0.40};
@@ -742,8 +813,10 @@ function renderKcal(){
   document.documentElement.style.setProperty('--accent2',u.accent2);
   const C=document.getElementById('content');
   if(!u.days||u.days.length===0){
-    C.innerHTML='<div class="panel empty stagger"><b>Noch keine Eintraege fuer '+curUser+'</b>Sobald '+curUser+' Mahlzeiten eintraegt,<br>erscheinen hier die Auswertungen.</div>';
-    document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - keine Daten';
+    C.innerHTML=emptyCard(IC_ADD,'Noch keine Einträge für '+curUser,
+      'Sobald '+curUser+' Mahlzeiten in Notion einträgt, erscheinen hier die Auswertungen automatisch.',
+      ctaLink('Ersten Eintrag hinzufügen'));
+    document.getElementById('foot').textContent='Stand: __BUILD_DATE__ · keine Daten';
     return;
   }
   const t=targets(u);
@@ -791,16 +864,16 @@ function renderKcal(){
         ${dqNote}
       </div>
       <div class="kpis">
-        <div class="kpi green stagger" style="animation-delay:.06s"><div class="bar"></div><div class="num">${counts.green}</div><div class="cap">Ziel erreicht</div><div class="sub">im gruenen Bereich</div><div class="pct">${pct(counts.green)} der Tage</div></div>
-        <div class="kpi amber stagger" style="animation-delay:.10s"><div class="bar"></div><div class="num">${counts.amber}</div><div class="cap">Im Defizit</div><div class="sub">ueber Ziel, unter Bedarf</div><div class="pct">${pct(counts.amber)} der Tage</div></div>
-        <div class="kpi red stagger" style="animation-delay:.14s"><div class="bar"></div><div class="num">${counts.red}</div><div class="cap">Ueber Bedarf</div><div class="sub">ueber Erhaltungsbedarf</div><div class="pct">${pct(counts.red)} der Tage</div></div>
+        <div class="kpi green stagger" style="animation-delay:.06s"><div class="bar"></div><div class="num">${counts.green}</div><div class="cap">Ziel erreicht</div><div class="sub">im grünen Bereich</div><div class="pct">${pct(counts.green)} der Tage</div></div>
+        <div class="kpi amber stagger" style="animation-delay:.10s"><div class="bar"></div><div class="num">${counts.amber}</div><div class="cap">Im Defizit</div><div class="sub">über Ziel, unter Bedarf</div><div class="pct">${pct(counts.amber)} der Tage</div></div>
+        <div class="kpi red stagger" style="animation-delay:.14s"><div class="bar"></div><div class="num">${counts.red}</div><div class="cap">Über Bedarf</div><div class="sub">über Erhaltungsbedarf</div><div class="pct">${pct(counts.red)} der Tage</div></div>
         <div class="kpi total stagger" style="animation-delay:.18s"><div class="bar"></div><div class="num">${total}</div><div class="cap">Tage getrackt</div><div class="sub">insgesamt</div><div class="pct">seit ${fmtDay(u.days[0].d)}</div></div>
       </div>
     </div>
 
     <div class="panel stagger" style="animation-delay:.22s;margin-bottom:16px">
       <div class="chart-title"><h2>Kaloriendifferenz - letzte 7 Tage</h2></div>
-      <div class="chart-sub">Differenz zum Tagesziel von ${u.goalIntake.toLocaleString('de')} kcal - links = drunter, rechts = drueber (neueste oben)</div>
+      <div class="chart-sub">Differenz zum Tagesziel von ${u.goalIntake.toLocaleString('de')} kcal · links = drunter, rechts = drüber (neueste oben)</div>
       <div class="dvg">
         ${last7.map(x=>{
           const diff=x.kcal-u.goalIntake, cls=classify(u,x.kcal);
@@ -833,34 +906,48 @@ function renderKcal(){
   document.getElementById('pt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curPeriod=b.dataset.p;renderKcal();});
   const agg=periodAgg(u.days,curPeriod);
   drawWeekly(PERIOD_LIMIT>0?agg.slice(-PERIOD_LIMIT):agg,u,t);
-  document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - '+total+' Tage - Verhaeltnis 30 % P / 30 % F / 40 % C - automatisch generiert';
+  document.getElementById('foot').textContent='Stand: __BUILD_DATE__ · '+total+' Tage · Verhältnis 30 % P / 30 % F / 40 % C · automatisch generiert';
 }
 function drawWeekly(weeks,u,t){
   const plot=document.getElementById('plot'), wkl=document.getElementById('wkl');
-  const H=158, tgt=t[curMetric];
-  const maxV=Math.max(...weeks.map(w=>w[curMetric]),tgt)*1.18;
+  const H=150, tgt=t[curMetric];
+  const maxV=Math.max(...weeks.map(w=>w[curMetric]),tgt)*1.18||1;
   const grp=curPeriod==='W'?'Kalenderwoche':curPeriod==='M'?'Monat':'Jahr';
-  document.getElementById('msub').textContent=METRICS[curMetric].label+' \\u00d8 pro Tag, gruppiert nach '+grp+' ('+METRICS[curMetric].unit+') - gestrichelt: Ziel '+tgt+' '+METRICS[curMetric].unit;
-  plot.innerHTML=weeks.map(w=>{
-    const h=Math.round(w[curMetric]/maxV*H);
-    return `<div class="wcol"><div class="wval">${w[curMetric].toLocaleString('de')}</div><div class="wbar" style="height:${h}px"></div></div>`;
+  document.getElementById('msub').textContent=METRICS[curMetric].label+' \\u00d8 pro Tag, gruppiert nach '+grp+' ('+METRICS[curMetric].unit+') \\u00b7 gestrichelt: Ziel '+tgt+' '+METRICS[curMetric].unit;
+  /* Als echtes SVG-Chart rendern (skalierbar, an fixe Achse gebunden). */
+  const W=Math.max(Math.round(plot.clientWidth)||640,260), VH=185;
+  const base=VH-3, top0=22;                 // Platz oben fuer die Wertelabels
+  const n=Math.max(weeks.length,1);
+  const colW=W/n, barW=Math.min(colW*0.5,72);
+  const yOf=v=>base-Math.round(v/maxV*H);
+  const bars=weeks.map((w,i)=>{
+    const cx=colW*(i+0.5), val=w[curMetric];
+    const y=Math.max(yOf(val),top0), h=Math.max(base-y,3);
+    return '<rect class="wsbar" x="'+(cx-barW/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="8"/>'
+         +'<text class="wsval" x="'+cx.toFixed(1)+'" y="'+(y-8).toFixed(1)+'">'+val.toLocaleString('de')+'</text>';
   }).join('');
-  const refpx=Math.round(tgt/maxV*H);
-  const rl=document.createElement('div');rl.className='refline';rl.style.bottom=refpx+'px';
-  rl.innerHTML='<span>Ziel '+tgt+'</span>';plot.appendChild(rl);
+  const refY=yOf(tgt);
+  const ref='<line class="wsref" x1="0" y1="'+refY+'" x2="'+W+'" y2="'+refY+'"/>'
+          +'<text class="wsreft" x="'+(W-4)+'" y="'+(refY-6)+'">Ziel '+tgt+'</text>';
+  plot.innerHTML='<svg class="wsvg" width="'+W+'" height="'+VH+'" viewBox="0 0 '+W+' '+VH+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+METRICS[curMetric].label+' \\u00d8 pro '+grp+'">'
+    +'<defs><linearGradient id="wgrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+u.accent+'"/><stop offset="1" stop-color="'+u.accent2+'"/></linearGradient></defs>'
+    +ref+bars+'</svg>';
   wkl.innerHTML=weeks.map(w=>`<div class="wklabel">${w.range}<small>${w.n} ${w.n===1?'Tag':'Tage'}</small></div>`).join('');
 }
 
 /* ============================ NAEHRSTOFFE ============================ */
 const CATS=[
   {key:"Darmgesundheit", help:"Ballaststoffe, Fermentiertes, Vielfalt = gut"},
-  {key:"Low FODMAP",     help:"niedrig-FODMAP / gut vertraeglich = gut"},
-  {key:"Säure-Base",     help:"basisch = gut, saeurebildend = schlecht"}
+  {key:"Low FODMAP",     help:"niedrig-FODMAP / gut verträglich = gut"},
+  {key:"Säure-Base",     help:"basisch = gut, säurebildend = schlecht"}
 ];
 const CHOL_GREEN=300, CHOL_AMBER=500;
 const CAT_GREEN=70, CAT_AMBER=50;
 const MIC_GREEN=90, MIC_AMBER=50;
 const NPERIODS={ "7":"letzte 7 Tage", "30":"letzte 30 Tage", "all":"gesamter Zeitraum" };
+const NEMPTY={ "7":"In den letzten 7 Tagen wurde nichts getrackt.",
+               "30":"In den letzten 30 Tagen wurde nichts getrackt.",
+               "all":"Im gesamten Zeitraum wurde nichts getrackt." };
 let curNPeriod='7', curSort='worst';
 function splitUnit(key){ const m=key.match(/^(.*) \\(([^)]+)\\)$/); return m?[m[1],m[2]]:[key,'']; }
 function fmtN(v){ if(v>=100)return Math.round(v).toLocaleString('de'); if(v>=10)return (Math.round(v*10)/10).toLocaleString('de'); return (Math.round(v*100)/100).toLocaleString('de'); }
@@ -927,8 +1014,10 @@ function renderNutri(){
   const C=document.getElementById('content');
 
   if(!u.days.length){
-    C.innerHTML='<div class="panel empty stagger"><b>Noch keine Eintraege fuer '+curUser+'</b>Sobald in der Lebensmittel-Analyse Zeilen<br>fuer '+curUser+' liegen, erscheint hier die Auswertung.</div>';
-    document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - keine Daten';
+    C.innerHTML=emptyCard(IC_ADD,'Noch keine Einträge für '+curUser,
+      'Sobald in der Lebensmittel-Analyse Zeilen für '+curUser+' liegen, erscheint hier die Auswertung.',
+      ctaLink('Ersten Eintrag hinzufügen'));
+    document.getElementById('foot').textContent='Stand: __BUILD_DATE__ · keine Daten';
     return;
   }
   const wd=nWindowDays(u), nDays=wd.length;
@@ -948,8 +1037,15 @@ function renderNutri(){
     </div>`;
 
   if(!nDays){
-    C.innerHTML=timebar+'<div class="panel empty stagger"><b>Keine Daten im Zeitfenster</b>Im '+NPERIODS[curNPeriod]+' wurde nichts getrackt.<br>Wechsle das Zeitfenster oben.</div>';
+    const cta = curNPeriod!=='all'
+      ? '<button class="ec-cta" id="ecall">'+IC_EYE+'Gesamten Zeitraum anzeigen</button>'
+      : '';
+    C.innerHTML=timebar+emptyCard(IC_CLOCK,'Keine Daten im Zeitfenster',
+      NEMPTY[curNPeriod]+' Wechsle das Zeitfenster oben – oder zeig gleich den gesamten Zeitraum.',
+      cta);
     document.getElementById('ntime').querySelectorAll('button').forEach(b=>b.onclick=()=>{curNPeriod=b.dataset.p;renderNutri();});
+    const ecall=document.getElementById('ecall');
+    if(ecall) ecall.onclick=()=>{curNPeriod='all';renderNutri();};
     document.getElementById('foot').textContent='Stand: __BUILD_DATE__';
     return;
   }
@@ -1001,11 +1097,11 @@ function renderNutri(){
   }).join('');
 
   C.innerHTML = timebar + `
-    <div class="sec-title stagger"><h2>Gesundheits-Checkpoints</h2><span class="hint">Ampel im gewaehlten Zeitfenster \\u00b7 Hover zeigt Top-Lebensmittel</span></div>
+    <div class="sec-title stagger"><h2>Gesundheits-Checkpoints</h2><span class="hint">Ampel im gewählten Zeitfenster \\u00b7 Hover zeigt Top-Lebensmittel</span></div>
     <div class="checks">${checksHtml}</div>
     <div class="panel stagger" style="animation-delay:.10s">
       <div class="micro-head">
-        <div><h2>Mikronaehrstoffe</h2><div class="mh-sub">\\u00d8 pro Tag vs. Tagesreferenzwert \\u00b7 gedeckelt bei 100 %</div></div>
+        <div><h2>Mikronährstoffe</h2><div class="mh-sub">\\u00d8 pro Tag vs. Tagesreferenzwert \\u00b7 gedeckelt bei 100 %</div></div>
         <div class="sortbtns" id="nsort">
           <button data-s="worst" class="${curSort==='worst'?'active':''}">Schlechteste zuerst</button>
           <button data-s="best" class="${curSort==='best'?'active':''}">Beste zuerst</button>
@@ -1034,6 +1130,9 @@ document.getElementById('toggle').querySelectorAll('button').forEach(b=>{
   b.onclick=()=>{document.querySelectorAll('#toggle button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');curUser=b.dataset.u;curMetric='kcal';renderAll();};
 });
+/* SVG-Chart an die Fensterbreite koppeln: bei Resize neu vermessen/zeichnen. */
+let _rzT;
+window.addEventListener('resize',()=>{clearTimeout(_rzT);_rzT=setTimeout(renderAll,180);});
 renderAll();
 </script>
 </body>
