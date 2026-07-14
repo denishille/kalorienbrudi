@@ -635,7 +635,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   /* ===================== KALORIEN-SEITE ===================== */
   .top{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-bottom:16px}
   @media(max-width:780px){.top{grid-template-columns:1fr}}
-  .goals .goalrow{display:flex;align-items:baseline;justify-content:space-between;padding:10px 0;border-bottom:1px dashed var(--border)}
+  .goals .goalrow{display:flex;align-items:baseline;justify-content:space-between;padding:13px 0;border-bottom:1px solid rgba(237,230,216,.08)}
   .goals .goalrow:last-child{border-bottom:none}
   .goals .gk{font-size:14px;color:var(--muted)}
   .goals .gv{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text);text-align:right}
@@ -644,8 +644,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .goals .gv.macro{font-size:13px}
   .goals .gv.macro b{color:var(--text);font-weight:500}
   .goals .gv .std{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:4px}
-  .goals .dq-note{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);
-    font-family:var(--body);font-size:12px;line-height:1.6;color:var(--amber)}
+  .goals .dq-note{margin-top:14px;background:rgba(240,192,74,.10);border:1px solid rgba(240,192,74,.32);
+    border-radius:12px;padding:11px 14px;font-family:var(--body);font-size:12px;line-height:1.6;color:var(--amber)}
+  .goals .dq-note a{color:var(--amber);font-weight:500;text-decoration:none;display:inline-block;margin-top:6px;border-bottom:1px solid rgba(240,192,74,.5)}
   .goals .dq-note .dqh{color:var(--faint);letter-spacing:.14em;text-transform:uppercase;font-size:9.5px;display:block;margin-bottom:5px}
   .goals .dq-note div{color:var(--muted)}
   .goals .dq-note b{color:var(--text);font-weight:500}
@@ -672,29 +673,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .kpi .bar{position:absolute;top:0;left:0;width:100%;height:3px}
   .kpi.green .bar{background:var(--green)} .kpi.amber .bar{background:var(--amber)}
   .kpi.red .bar{background:var(--red)} .kpi.total .bar{background:var(--accent)}
-  /* farbiger Akzent (weicher Glow) hinter der Zahl - Status-Signal je Kachel */
-  .kpi .kglow{position:absolute;left:-14px;top:26px;width:104px;height:104px;border-radius:50%;filter:blur(28px);opacity:.16;z-index:0;pointer-events:none}
-  .kpi.green .kglow{background:var(--green)} .kpi.amber .kglow{background:var(--amber)}
-  .kpi.red .kglow{background:var(--red)} .kpi.total .kglow{background:var(--accent)}
-  .kpi .khead{display:flex;justify-content:flex-end;position:relative;z-index:2}
-  .kpi .kicon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:9px}
-  .kpi .kicon svg{width:16px;height:16px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .kpi.green .kicon{background:rgba(91,209,106,.14)} .kpi.green .kicon svg{stroke:var(--green)}
-  .kpi.amber .kicon{background:rgba(240,192,74,.14)} .kpi.amber .kicon svg{stroke:var(--amber)}
-  .kpi.red .kicon{background:rgba(255,92,87,.14)} .kpi.red .kicon svg{stroke:var(--red)}
-  .kpi.total .kicon{background:rgba(77,166,255,.14)} .kpi.total .kicon svg{stroke:var(--accent)}
   .kpi .num{font-family:var(--display);font-weight:800;font-size:44px;line-height:1;letter-spacing:-.03em;position:relative;z-index:2;margin-top:2px}
   .kpi.green .num{color:var(--green)} .kpi.amber .num{color:var(--amber)}
   .kpi.red .num{color:var(--red)} .kpi.total .num{color:var(--text)}
   .kpi .cap{margin-top:7px;font-size:13px;color:var(--text);line-height:1.25;font-weight:500;position:relative;z-index:2}
   .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.25;position:relative;z-index:2}
-  /* Micro-Progress-Bar: Anteil der Tage sofort ablesbar */
-  .kpi .kmicro{margin-top:11px;position:relative;z-index:2}
-  .kpi .kmtrack{height:5px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;overflow:hidden}
-  .kpi .kmfill{height:100%;border-radius:4px;transition:width .7s cubic-bezier(.2,.8,.2,1)}
-  .kpi.green .kmfill{background:var(--green)} .kpi.amber .kmfill{background:var(--amber)}
-  .kpi.red .kmfill{background:var(--red)} .kpi.total .kmfill{background:var(--accent)}
-  .kpi .kmpct{display:block;font-family:var(--body);font-size:11.5px;color:var(--faint);margin-top:6px}
   .chart-title{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px}
   .chart-title h2{font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:-.01em}
   .chart-sub{font-size:12.5px;color:var(--muted);margin-bottom:18px}
@@ -702,7 +685,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .dvg .drow{display:grid;grid-template-columns:84px 1fr 84px;align-items:center;gap:10px}
   .dvg .dday{font-family:var(--body);font-size:12.5px;color:var(--muted);text-align:right;white-space:nowrap}
   .dvg .track{position:relative;height:26px;background:var(--panel2);border-radius:7px;overflow:hidden}
-  .dvg .zero{position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--faint);opacity:.6;z-index:2}
+  .dvg .zero{position:absolute;top:0;bottom:0;left:50%;width:1.5px;background:var(--text);opacity:.35;z-index:2}
+  .dvg .grid{position:absolute;top:0;bottom:0;width:1px;background:var(--border);opacity:.7}
   .dvg .fill{position:absolute;top:3px;bottom:3px;border-radius:5px;transition:.5s cubic-bezier(.2,.8,.2,1)}
   .dvg .fill.green{background:linear-gradient(90deg,rgba(91,209,106,.35),rgba(91,209,106,.85))}
   .dvg .fill.amber{background:linear-gradient(90deg,rgba(240,192,74,.85),rgba(240,192,74,.4))}
@@ -810,21 +794,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .cov-gauge .cg-txt p{font-family:var(--body);font-size:12.5px;color:var(--muted);line-height:1.55}
   .cov-gauge .cg-txt p b{color:var(--text);font-weight:500}
 
-  /* ---- Advisory-Banner: Zeitfenster-Fallback & Sammelposten-Heuristik ---- */
-  .note-amber{display:flex;align-items:flex-start;gap:10px;background:rgba(240,192,74,.10);
-    border:1px solid rgba(240,192,74,.32);border-radius:12px;padding:11px 15px;margin-bottom:18px;
-    font-family:var(--body);font-size:12.5px;line-height:1.5;color:var(--amber)}
-  .note-amber svg{width:16px;height:16px;flex:none;margin-top:1px;fill:none;stroke:var(--amber);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .note-amber b{color:var(--text);font-weight:500}
-  .note-amber .na-body{color:var(--muted)}
 
   /* ---- Empty-State: einladende Card mit CTA statt toter Leerflaeche ---- */
   .empty-card{display:flex;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;gap:6px;padding:60px 28px;min-height:380px}
-  .empty-card .ec-icon{width:58px;height:58px;margin-bottom:12px;color:var(--accent);opacity:.92}
-  .empty-card h2{font-family:var(--display);font-weight:800;font-size:23px;letter-spacing:-.01em;color:var(--text)}
-  .empty-card p{font-family:var(--body);font-size:14px;line-height:1.6;color:var(--muted);max-width:380px}
-  .empty-card .ec-cta{margin-top:20px;display:inline-flex;align-items:center;gap:9px;
+    text-align:center;gap:4px;padding:30px 24px;min-height:170px}
+  .empty-card .ec-icon{width:42px;height:42px;margin-bottom:8px;color:var(--accent);opacity:.92}
+  .empty-card h2{font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:-.01em;color:var(--text)}
+  .empty-card p{font-family:var(--body);font-size:13px;line-height:1.55;color:var(--muted);max-width:380px}
+  .empty-card .ec-cta{margin-top:14px;display:inline-flex;align-items:center;gap:9px;
     font-family:var(--display);font-weight:600;font-size:14.5px;color:var(--darkink);
     background:var(--accent);border:none;border-radius:12px;padding:12px 22px;cursor:pointer;
     text-decoration:none;transition:transform .15s,filter .2s}
@@ -874,11 +851,6 @@ const IC_CLOCK='<svg class="ec-icon" viewBox="0 0 24 24" fill="none" stroke="cur
 const IC_PLUS='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
 const IC_EYE='<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 /* KPI-Icons (Status-Signal je Kachel) + Warn-Icon fuer Advisory-Banner */
-const IC_CHECK='<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
-const IC_TREND='<svg viewBox="0 0 24 24"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>';
-const IC_UP='<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
-const IC_CAL='<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
-const IC_WARN='<svg viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
 function emptyCard(icon,title,msg,cta){
   return '<div class="panel empty-card stagger">'+icon
        +'<h2>'+title+'</h2><p>'+msg+'</p>'+(cta||'')+'</div>';
@@ -940,7 +912,7 @@ function renderKcal(){
   if(q.mismatchDays) dqItems.push('<div><b>'+q.mismatchDays+'</b> Tag(e): Total weicht von Einzelposten-Summe ab</div>');
   if(q.zielFromData===false) dqItems.push('<div>Zielgewicht ist Standardwert (nicht aus Notion)</div>');
   if(q.goalFromData===false) dqItems.push('<div>Kalorienziel ist Standardwert (nicht aus Notion)</div>');
-  const dqNote = dqItems.length ? '<div class="dq-note"><span class="dqh">\\u26a0 Datenqualit\\u00e4t</span>'+dqItems.join('')+'</div>' : '';
+  const dqNote = dqItems.length ? '<div class="dq-note"><span class="dqh">\\u26a0 Datenqualit\\u00e4t</span>'+dqItems.join('')+'<a href="https://github.com/denishille/kalorienbrudi/tree/main/loop/reports" target="_blank" rel="noopener">Details ansehen \\u2192</a></div>' : '';
   const counts={green:0,amber:0,red:0};
   u.days.forEach(x=>counts[classify(u,x.kcal)]++);
   const total=u.days.length, pctNum=n=>total?Math.round(n/total*100):0, pct=n=>total?pctNum(n)+'%':'-';
@@ -983,16 +955,16 @@ function renderKcal(){
         ${dqNote}
       </div>
       <div class="kpis">
-        <div class="kpi green stagger" style="animation-delay:.06s"><div class="bar"></div><div class="kglow"></div><div class="khead"><span class="kicon">${IC_CHECK}</span></div><div class="num">${counts.green}</div><div class="cap">Ziel erreicht</div><div class="sub">im grünen Bereich</div><div class="kmicro"><div class="kmtrack"><div class="kmfill" style="width:${pctNum(counts.green)}%"></div></div><span class="kmpct">${pct(counts.green)} der Tage</span></div></div>
-        <div class="kpi amber stagger" style="animation-delay:.10s"><div class="bar"></div><div class="kglow"></div><div class="khead"><span class="kicon">${IC_TREND}</span></div><div class="num">${counts.amber}</div><div class="cap">Im Defizit</div><div class="sub">über Ziel, unter Bedarf</div><div class="kmicro"><div class="kmtrack"><div class="kmfill" style="width:${pctNum(counts.amber)}%"></div></div><span class="kmpct">${pct(counts.amber)} der Tage</span></div></div>
-        <div class="kpi red stagger" style="animation-delay:.14s"><div class="bar"></div><div class="kglow"></div><div class="khead"><span class="kicon">${IC_UP}</span></div><div class="num">${counts.red}</div><div class="cap">Über Bedarf</div><div class="sub">über Erhaltungsbedarf</div><div class="kmicro"><div class="kmtrack"><div class="kmfill" style="width:${pctNum(counts.red)}%"></div></div><span class="kmpct">${pct(counts.red)} der Tage</span></div></div>
-        <div class="kpi total stagger" style="animation-delay:.18s"><div class="bar"></div><div class="kglow"></div><div class="khead"><span class="kicon">${IC_CAL}</span></div><div class="num">${total}</div><div class="cap">Tage getrackt</div><div class="sub">insgesamt</div><div class="kmicro"><span class="kmpct">seit ${fmtDay(u.days[0].d)}</span></div></div>
+        <div class="kpi green stagger" title="Gr\u00fcn = Tag unter Kalorienziel (+ Puffer)" style="animation-delay:.06s"><div class="bar"></div><div class="num">${counts.green}</div><div class="cap">Ziel erreicht</div><div class="sub">${pct(counts.green)} der Tage</div></div>
+        <div class="kpi amber stagger" title="Gelb = \u00fcber Ziel, aber unter Erhaltungsbedarf" style="animation-delay:.10s"><div class="bar"></div><div class="num">${counts.amber}</div><div class="cap">Im Defizit</div><div class="sub">${pct(counts.amber)} der Tage</div></div>
+        <div class="kpi red stagger" title="Rot = \u00fcber Erhaltungsbedarf" style="animation-delay:.14s"><div class="bar"></div><div class="num">${counts.red}</div><div class="cap">\u00dcber Bedarf</div><div class="sub">${pct(counts.red)} der Tage</div></div>
+        <div class="kpi total stagger" title="Alle getrackten Tage" style="animation-delay:.18s"><div class="bar"></div><div class="num">${total}</div><div class="cap">Tage getrackt</div><div class="sub">seit ${fmtDay(u.days[0].d)}</div></div>
       </div>
     </div>
 
     <div class="panel stagger" style="animation-delay:.22s;margin-bottom:16px">
       <div class="chart-title"><h2>Kaloriendifferenz - letzte 7 Tage</h2></div>
-      <div class="chart-sub">Differenz zum Tagesziel von ${u.goalIntake.toLocaleString('de')} kcal · links = drunter, rechts = drüber (neueste oben)</div>
+      <div class="chart-sub">Differenz zum Tagesziel von ${u.goalIntake.toLocaleString('de')} kcal · <span style="color:var(--green)">grün = unter Ziel</span> · <span style="color:var(--amber)">gold = über Ziel</span> · <span style="color:var(--red)">rot = über Bedarf</span> (neueste oben)</div>
       <div class="dvg">
         ${last7.map(x=>{
           const diff=x.kcal-u.goalIntake, cls=classify(u,x.kcal);
@@ -1151,9 +1123,7 @@ function renderNutri(){
      Zeitfenster leer, es gibt aber überhaupt Einträge, zeige den gesamten
      erfassten Zeitraum - so rendert die Auswertung inkl. Chart trotzdem,
      statt in einer toten Leerfläche zu enden. */
-  let wd=nWindowDays(u), winFallback=false;
-  if(!wd.length && u.days.length){ wd=u.days.slice(); winFallback=true; }
-  const nDays=wd.length;
+  const wd=nWindowDays(u), nDays=wd.length;
   const fmtDt=iso=>{const p=iso.split('-');return p[2]+'.'+p[1]+'.'+p[0];};
   const tsub = nDays
     ? fmtDt(wd[0].d)+' \\u2013 '+fmtDt(wd[wd.length-1].d)+' \\u00b7 '+nDays+(nDays===1?' getrackter Tag':' getrackte Tage')+' \\u00b7 \\u00d8 pro Tag'
@@ -1228,15 +1198,6 @@ function renderNutri(){
     <div class="cg-txt"><h3>Gesamtdeckung</h3>
     <p>Ø <b>${Math.round(cov)} %</b> der DGE-Tagesreferenz über ${micros.length} Mikronährstoffe · gedeckelt bei 100 %</p></div></div>`;
 
-  /* Advisory-Banner: Zeitfenster-Fallback (Task 5) + Sammelposten-Heuristik (Task 6) */
-  const winNote = winFallback
-    ? '<div class="note-amber stagger">'+IC_WARN+'<div><b>Keine Einträge in '+NPERIODS[curNPeriod]+'.</b> <span class="na-body">Angezeigt wird der gesamte erfasste Zeitraum, damit die Auswertung nicht leer bleibt.</span></div></div>'
-    : '';
-  const compN=(u.quality&&u.quality.compositeItems)||0;
-  const splitNote = compN
-    ? '<div class="note-amber stagger">'+IC_WARN+'<div><b>'+compN+' m\\u00f6gliche Sammelposten erkannt.</b> <span class="na-body">Zusammengesetzte Gerichte (z.B. Bowls oder \\u201e\\u2026 mit \\u2026\\u201c) sollten in Einzel-Zutaten getrennt werden, damit die Makros pro Zutat belastbar sind.</span></div></div>'
-    : '';
-
   micros.sort((x,y)=> curSort==='worst' ? x.pct-y.pct : y.pct-x.pct);
   let barsHtml=micros.map((m,i)=>{
     const full=m.pct>=99.5?' full':'';
@@ -1247,7 +1208,7 @@ function renderNutri(){
     </div>`;
   }).join('');
 
-  C.innerHTML = timebar + winNote + splitNote + `
+  C.innerHTML = timebar + `
     <div class="sec-title stagger"><h2>Gesundheits-Checkpoints</h2><span class="hint">Ampel im gewählten Zeitfenster \\u00b7 Hover zeigt Top-Lebensmittel</span></div>
     <div class="checks">${checksHtml}</div>
     <div class="panel stagger" style="animation-delay:.10s">
