@@ -15,35 +15,43 @@
 
 ## Gesamtnote: **6,5 / 10**
 
-Solide Datenvisualisierung mit gutem Dark-Theme-Ansatz, aber inkonsistente Typo-Hierarchie, ungenutzter Whitespace (Desktop) und Charts mit schwacher Lesbarkeit ziehen die Note runter. Fühlt sich funktional, aber noch nicht „premium" an.
+Solide Datendichte, funktionale Balken, gute Farbcodierung (Ampel). Aber: schwache Typo-Hierarchie, inkonsistente Abstände, zu viel gleichförmiger Dark-on-Dark-Kontrast und ein wenig durchdachtes Chart auf Mobil. Wirkt „Dashboard-Template“, nicht „Premium-Produkt“.
 
 ---
 
 ## Konkrete Verbesserungen (priorisiert)
 
-**1. Whitespace-Chaos im Desktop-Balkenchart (KRITISCH)**
-Element: Mikronährstoffe-Liste. Die Balken enden bei ~90% Breite, dann kommen die %-Werte weit rechts isoliert. Zustand: Balken auf ~70% Breite begrenzen, %-Wert direkt am Balkenende platzieren (rechtsbündig ausgerichtet in fixer Spalte). Reduziert riesigen Leerraum, verbessert Blickführung.
+**1. Kontrast der Fließtexte anheben (Desktop + Mobil)**
+Betroffen: alle grauen Sublabels („5 getrackte Tage“, „4,97 / 20 µg“, Footer).
+Ziel: Sekundärtext von ~#666 auf min. #9A9A9A (WCAG AA ≥ 4.5:1). Aktuell teils kaum lesbar.
 
-**2. Farbcodierung Ampel vs. Balken inkonsistent (HOCH)**
-Element: Checkpoint-Karten nutzen Rot/Gelb/Grün, Balken haben eigenen Rot-Gold-Grün-Verlauf, Denis-Statuskarten wieder andere Töne. Zustand: EINE definierte Ampelpalette (z.B. #F87171 / #FBBF24 / #4ADE80) systemweit als Design-Token durchziehen.
+**2. User-Switch vereinheitlichen**
+Betroffen: Toggle „Denis / Leni“ (pink vs. blau, unterschiedliche Position/Größe je Screen).
+Ziel: Identische Komponente, aktive Farbe = jeweilige User-Akzentfarbe, gleiche Höhe/Padding auf beiden Plattformen. Inaktiver Zustand als Outline-Pill, nicht als voller Button.
 
-**3. Typo-Hierarchie „Dashboard Leni/Denis" (HOCH)**
-Element: Header. Der Zweifarb-Titel (weiß + pink/blau) plus darüberliegendes „NÄHRSTOFFBRUDI/KALORIENBRUDI" wirkt verspielt und uneindeutig. Zustand: Klare 3-Stufen-Hierarchie – Eyebrow-Label (11px, uppercase, gedämpft), H1 (32px, einfarbig), Nutzer-Toggle rechts. Akzentfarbe nur im aktiven Toggle, nicht im Titel.
+**3. Balkenliste: Prozent + Label-Ausrichtung fixieren**
+Betroffen: Mikronährstoff-Liste.
+Ziel: Prozentwerte rechtsbündig in fester Spalte, Balken links auf gleicher X-Achse starten, Wert-Sublabel (z. B. „42,3 / 95 mg“) rechtsbündig zum Nährstoffnamen. Aktuell wirkt die linke Spalte visuell zerfranst.
 
-**4. Denis-Datenzeilen zu luftig & label-value flach (MITTEL)**
-Element: „Ziel / Kalorienziel / Defizit"-Liste (Mobil). Sehr große vertikale Abstände, alle Zeilen gleich gewichtet → keine Hierarchie. Zustand: Wichtigste 2 KPIs (Kalorienziel, Fortschritt) als hervorgehobene Cards, Rest als kompaktere Tabelle mit dezenten Divider-Linien. Zeilenabstand ~30% reduzieren.
+**4. Chart-Achse auf Mobil (Kaloriendifferenz) neu denken**
+Betroffen: horizontale Mini-Balken „letzte 7 Tage“.
+Ziel: Nulllinie visuell markieren (vertikale Achse), grüne/goldene Balken beidseitig davon; aktuell sind alle Balken quasi bündig und die +/- Logik nicht ablesbar. Werte konsistent rechts.
 
-**5. Chart-Lesbarkeit „Kaloriendifferenz" (MITTEL)**
-Element: Horizontale Balken mit +391 kcal etc. Nulllinie/Referenz fehlt visuell, Balken schweben. Zustand: Vertikale 0-Achse einzeichnen, negative (grün) links / positive (gold/rot) rechts spiegeln. Datumslabels linksbündig ausrichten.
+**5. Karten-Radius & Border-Stil konsistent machen**
+Betroffen: Checkpoint-Karten (farbige Top-Border) vs. große Container (kein Akzent) vs. Mobil-Stat-Karten (dicke farbige Top-Border).
+Ziel: Ein Border-System – z. B. 1px subtiler Rand + 3px farbiger Top-Accent nur bei Status-Karten. Radius global auf 16px vereinheitlichen.
 
-**6. Karten-Border-Akzente wirken beliebig (MITTEL)**
-Element: Farbige Top-Border der Checkpoint- & Stat-Cards. Aktuell nur schmaler farbiger Strich oben. Zustand: Entweder konsequent als 2px Top-Accent ODER als dezenter farbiger Glow/Icon – nicht gemischt. Card-Padding vereinheitlichen (aktuell variiert es).
+**6. Typo-Hierarchie schärfen**
+Betroffen: Überschriften „Dashboard Leni“, „Mikronährstoffe“, Werte wie „71%“.
+Ziel: Klarere Skala (H1 32/40, Section 20/28, Wert-Zahlen tabular-nums). Letter-Spacing der Uppercase-Kicker („ZEITFENSTER“, „NÄHRSTOFFBRUDI“) reduzieren – aktuell zu breit gesperrt und billig wirkend. „Brudi“-Kicker wirkt unprofessionell → entfernen oder ersetzen.
 
-**7. „Datenqualität"-Warnung zu unauffällig / Kontrast (MITTEL)**
-Element: Gelber Warnhinweis bei Denis. Text auf dunkelgelbem BG schwer lesbar (Kontrast <4.5:1). Zustand: Kontrast erhöhen (hellerer Text oder dunklerer BG), Warn-Icon prominenter, CTA „Details ansehen" als echter Button-Style.
+**7. Vertikaler Rhythmus / Whitespace**
+Betroffen: Abstände zwischen Gesamtdeckung → Mikronährstoffe (zu eng) und großzügige Leerräume oben.
+Ziel: Konsistentes 8pt-Spacing-Grid; Section-Abstände einheitlich 40px, Karten-Innenpadding 24px.
 
-**8. Zahlenformat & Einheiten inkonsistent (NIEDRIG)**
-Element: „3,64 / 20 µg", „58 / 100", „1.900 kcal". Einheiten mal grau/klein, mal inline. Zustand: Durchgehendes Muster – Wert (tabular-nums, gebold) + Einheit (kleiner, gedämpft, konstante Baseline). Tabellenziffern aktivieren für saubere Ausrichtung.
+**8. Status-Badges & Datenqualität-Hinweis aufwerten**
+Betroffen: „Wackelig · 45%“, „14 Tage weicht ab“-Box.
+Ziel: Icon + klare Farbfläche (Amber-Chip mit dunklem Text statt dünner Border), CTA „Details ansehen“ als echter Link-Button mit Hover-State.
 
 ## Screenshots
 - `reports/shots/desktop.png`
