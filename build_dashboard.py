@@ -582,16 +582,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <title>Brudi-Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#15130F; --panel:#1E1B16; --panel2:#211D17; --border:#322C23;
-    --text:#EDE6D8; --muted:#9A9182; --faint:#6B6356;
+    --text:#EDE6D8; --muted:#B4AB9A; --faint:#8E8577;
     --green:#5BD16A; --amber:#F0C04A; --red:#FF5C57;
     --accent:#4DA6FF; --accent2:#1E6FD9;
     --display:'Bricolage Grotesque',sans-serif;
     --body:'Familjen Grotesk',sans-serif;
     --mono:'DM Mono',monospace;
+    --num:'Inter','Familjen Grotesk',sans-serif;
     --darkink:#15130F;
   }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -629,7 +630,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .toggle button.active[data-u="Denis"]{background:#4DA6FF}
   .toggle button.active[data-u="Leni"]{background:#FF6FB5}
 
-  .panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:24px}
   .panel .label{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);margin-bottom:14px}
 
   /* ===================== KALORIEN-SEITE ===================== */
@@ -638,7 +639,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .goals .goalrow{display:flex;align-items:baseline;justify-content:space-between;padding:13px 0;border-bottom:1px solid rgba(237,230,216,.08)}
   .goals .goalrow:last-child{border-bottom:none}
   .goals .gk{font-size:14px;color:var(--muted)}
-  .goals .gv{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text);text-align:right}
+  .goals .gv{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:18px;font-weight:500;color:var(--text);text-align:right}
   .goals .gv small{font-size:12px;color:var(--faint)}
   .goals .gv.accent{color:var(--accent)}
   .goals .gv.macro{font-size:13px}
@@ -653,7 +654,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .progress{margin-bottom:16px;padding-bottom:15px;border-bottom:1px dashed var(--border)}
   .progress .prow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
   .progress .pk{font-size:13px;color:var(--text);font-weight:500}
-  .progress .ppct{font-family:var(--mono);font-size:17px;font-weight:500;color:var(--accent)}
+  .progress .ppct{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:17px;font-weight:500;color:var(--accent)}
   .progress .ptrack{height:10px;background:var(--panel2);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
   .progress .pfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .7s cubic-bezier(.2,.8,.2,1)}
   .progress .pcap{margin-top:8px;font-family:var(--body);font-size:12px;color:var(--muted);line-height:1.5}
@@ -669,7 +670,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .progress .prow.pstatus{margin-top:10px;margin-bottom:0}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   @media(max-width:780px){.kpis{grid-template-columns:repeat(2,1fr)}}
-  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:16px 18px 16px;position:relative;overflow:hidden}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px;position:relative;overflow:hidden}
   .kpi .bar{position:absolute;top:0;left:0;width:100%;height:3px}
   .kpi.green .bar{background:var(--green)} .kpi.amber .bar{background:var(--amber)}
   .kpi.red .bar{background:var(--red)} .kpi.total .bar{background:var(--accent)}
@@ -691,7 +692,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .dvg .fill.green{background:linear-gradient(90deg,rgba(91,209,106,.35),rgba(91,209,106,.85))}
   .dvg .fill.amber{background:linear-gradient(90deg,rgba(240,192,74,.85),rgba(240,192,74,.4))}
   .dvg .fill.red{background:linear-gradient(90deg,rgba(255,92,87,.9),rgba(255,92,87,.4))}
-  .dvg .dval{font-family:var(--mono);font-size:12px;font-weight:500;white-space:nowrap;text-align:left}
+  .dvg .dval{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12px;font-weight:500;white-space:nowrap;text-align:left}
   .dvg .dval.green{color:var(--green)} .dvg .dval.amber{color:var(--amber)} .dvg .dval.red{color:var(--red)}
   .dvg .dflag{color:var(--amber);font-size:11px;margin-left:5px;cursor:help}
   .metric-toggle{display:flex;gap:5px;flex-wrap:nowrap}
@@ -727,19 +728,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .checks{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:30px}
   @media(max-width:820px){.checks{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:460px){.checks{grid-template-columns:1fr}}
-  .check{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px 16px 15px;overflow:hidden}
+  .check{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px 20px 18px;overflow:hidden}
   .check .topbar{position:absolute;top:0;left:0;width:100%;height:3px}
   .check.green .topbar{background:var(--green)} .check.amber .topbar{background:var(--amber)} .check.red .topbar{background:var(--red)}
+  .check.green{border-color:rgba(91,209,106,.45)} .check.amber{border-color:rgba(240,192,74,.45)} .check.red{border-color:rgba(255,92,87,.5)}
   .check .ck-head{display:flex;align-items:center;gap:8px;margin-bottom:3px}
   .check .ck-dot{width:11px;height:11px;border-radius:50%;flex:none}
   .check.green .ck-dot{background:var(--green);box-shadow:0 0 10px rgba(91,209,106,.5)}
   .check.amber .ck-dot{background:var(--amber);box-shadow:0 0 10px rgba(240,192,74,.45)}
   .check.red .ck-dot{background:var(--red);box-shadow:0 0 10px rgba(255,92,87,.45)}
   .check .ck-name{font-family:var(--display);font-weight:600;font-size:14.5px}
-  .check .ck-status{font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:-.01em;margin-top:6px}
+  .check .ck-status{font-family:var(--display);font-weight:700;font-size:23px;letter-spacing:-.01em;margin-top:6px}
   .check.green .ck-status{color:var(--green)} .check.amber .ck-status{color:var(--amber)} .check.red .ck-status{color:var(--red)}
-  .check .ck-detail{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
-  .check .ck-help{font-size:11px;color:var(--faint);margin-top:9px;line-height:1.35}
+  .check .ck-detail{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:11px;color:var(--muted);margin-top:3px}
+  .check .ck-help{font-size:11px;color:var(--faint);margin-top:9px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .check .ck-score{margin-left:auto;font-family:var(--num);font-variant-numeric:tabular-nums;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;flex:none}
+  .check.green .ck-score{color:var(--green);background:rgba(91,209,106,.14)}
+  .check.amber .ck-score{color:var(--amber);background:rgba(240,192,74,.14)}
+  .check.red .ck-score{color:var(--red);background:rgba(255,92,87,.16)}
   /* --- Hover-Quickinfo: Top-Lebensmittel pro Kategorie --- */
   .check.has-tip{cursor:help}
   .check .ck-tip{position:absolute;inset:0;background:var(--panel2);padding:13px 15px;z-index:3;
@@ -756,19 +762,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .micro-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
   .micro-head h2{font-family:var(--display);font-weight:600;font-size:18px}
   .micro-head .mh-sub{font-family:var(--body);font-size:12.5px;color:var(--faint);margin-top:2px}
-  .bars{display:flex;flex-direction:column;gap:11px}
-  .brow{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:12px}
+  .bars{display:flex;flex-direction:column;gap:5px}
+  .brow{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:12px;padding:6px 8px;border-radius:9px;transition:background .15s}
+  .brow:hover{background:rgba(237,230,216,.05)}
   @media(max-width:560px){.brow{grid-template-columns:120px 1fr 44px;gap:8px}}
   .bname{display:flex;flex-direction:column;gap:1px;min-width:0}
   .bname .bn{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bname .bamt{font-family:var(--mono);font-size:10px;color:var(--faint);white-space:nowrap}
+  .bname .bamt{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:10px;color:var(--faint);white-space:nowrap}
   .btrack{position:relative;height:22px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;overflow:hidden}
+  .btrack::after{content:'';position:absolute;right:0;top:0;bottom:0;width:2px;background:rgba(237,230,216,.14)}
   .bfill{position:absolute;top:0;left:0;height:100%;border-radius:6px 0 0 6px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
   .bfill.green{background:linear-gradient(90deg,rgba(91,209,106,.45),rgba(91,209,106,.95))}
   .bfill.amber{background:linear-gradient(90deg,rgba(240,192,74,.5),rgba(240,192,74,.95))}
   .bfill.red{background:linear-gradient(90deg,rgba(255,92,87,.55),rgba(255,92,87,.95))}
   .bfill.full{border-radius:6px}
-  .bpct{font-family:var(--mono);font-size:12px;font-weight:500;text-align:right}
+  .bpct{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12px;font-weight:500;text-align:right}
   .bpct.green{color:var(--green)} .bpct.amber{color:var(--amber)} .bpct.red{color:var(--red)}
   .sortbtns{display:flex;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:4px}
   .sortbtns button{font-family:var(--mono);font-size:11px;color:var(--muted);background:none;border:none;
@@ -778,18 +786,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   /* ---- SVG-Chart (Wochendurchschnitt) ---- */
   .plot .wsvg{display:block;width:100%;height:auto;overflow:visible}
   .wsbar{fill:url(#wgrad)}
-  .wsval{fill:var(--text);font-family:var(--mono);font-size:13px;font-weight:500;text-anchor:middle}
+  .wsval{fill:var(--text);font-family:var(--num);font-variant-numeric:tabular-nums;font-size:13px;font-weight:500;text-anchor:middle}
   .wsref{stroke:var(--green);stroke-width:1.5;stroke-dasharray:5 4;opacity:.9}
-  .wsreft{fill:var(--green);font-family:var(--mono);font-size:11px;text-anchor:end}
+  .wsreft{fill:var(--green);font-family:var(--num);font-variant-numeric:tabular-nums;font-size:11px;text-anchor:start}
 
   /* ---- SVG-Gauge (Gesamtdeckung Mikronaehrstoffe) auf der Naehrstoff-Seite ----
      Echtes Chart-Element, damit die Seite auch bei Leni-Datenluecken rendert. */
-  .cov-gauge{display:flex;align-items:center;gap:20px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px dashed var(--border)}
-  .cov-gauge svg{width:96px;height:96px;flex:none;display:block;overflow:visible}
+  .cov-gauge{display:flex;align-items:center;gap:26px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px dashed var(--border)}
+  .cov-gauge svg{width:120px;height:120px;flex:none;display:block;overflow:visible}
   .cov-gauge .cg-ring{fill:none;stroke:var(--panel2);stroke-width:9}
   .cov-gauge .cg-val{fill:none;stroke-width:9;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dasharray .7s cubic-bezier(.2,.8,.2,1)}
   .cov-gauge .cg-num{font-family:var(--display);font-weight:800;font-size:21px;fill:var(--text);text-anchor:middle;dominant-baseline:central}
-  .cov-gauge .cg-txt{min-width:0}
+  .cov-gauge .cg-txt{min-width:0;flex:1}
   .cov-gauge .cg-txt h3{font-family:var(--display);font-weight:600;font-size:15px;margin-bottom:4px}
   .cov-gauge .cg-txt p{font-family:var(--body);font-size:12.5px;color:var(--muted);line-height:1.55}
   .cov-gauge .cg-txt p b{color:var(--text);font-weight:500}
@@ -1007,19 +1015,22 @@ function drawWeekly(weeks,u,t){
   document.getElementById('msub').textContent=METRICS[curMetric].label+' \\u00d8 pro Tag, gruppiert nach '+grp+' ('+METRICS[curMetric].unit+') \\u00b7 gestrichelt: Ziel '+tgt+' '+METRICS[curMetric].unit;
   /* Als echtes SVG-Chart rendern (skalierbar, an fixe Achse gebunden). */
   const W=Math.max(Math.round(plot.clientWidth)||640,260), VH=185;
-  const base=VH-3, top0=22;                 // Platz oben fuer die Wertelabels
+  const base=VH-3, top0=26;                 // Platz oben fuer die Wertelabels
   const n=Math.max(weeks.length,1);
   const colW=W/n, barW=Math.min(colW*0.5,72);
   const yOf=v=>base-Math.round(v/maxV*H);
+  const refY=yOf(tgt);
   const bars=weeks.map((w,i)=>{
     const cx=colW*(i+0.5), val=w[curMetric];
     const y=Math.max(yOf(val),top0), h=Math.max(base-y,3);
+    let ly=y-8;                                   // Kollision mit Ziellinie vermeiden
+    if(Math.abs(ly-refY)<12) ly=Math.min(ly,refY-14);
+    if(ly<12) ly=12;
     return '<rect class="wsbar" x="'+(cx-barW/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="8"/>'
-         +'<text class="wsval" x="'+cx.toFixed(1)+'" y="'+(y-8).toFixed(1)+'">'+val.toLocaleString('de')+'</text>';
+         +'<text class="wsval" x="'+cx.toFixed(1)+'" y="'+ly.toFixed(1)+'">'+val.toLocaleString('de')+'</text>';
   }).join('');
-  const refY=yOf(tgt);
   const ref='<line class="wsref" x1="0" y1="'+refY+'" x2="'+W+'" y2="'+refY+'"/>'
-          +'<text class="wsreft" x="'+(W-4)+'" y="'+(refY-6)+'">Ziel '+tgt+'</text>';
+          +'<text class="wsreft" x="4" y="'+(refY<20?refY+14:refY-6)+'">Ziel '+tgt+'</text>';
   plot.innerHTML='<svg class="wsvg" width="'+W+'" height="'+VH+'" viewBox="0 0 '+W+' '+VH+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+METRICS[curMetric].label+' \\u00d8 pro '+grp+'">'
     +'<defs><linearGradient id="wgrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+u.accent+'"/><stop offset="1" stop-color="'+u.accent2+'"/></linearGradient></defs>'
     +ref+bars+'</svg>';
@@ -1096,10 +1107,10 @@ function tipCholHtml(items){
     :'<div class="none">keine</div>';
   return '<div class="ck-tip"><div class="col"><div class="tt neg">\\u25bc Top 4 Quellen</div>'+li+'</div></div>';
 }
-function checkCard(name, cls, status, detail, help, i, tip){
+function checkCard(name, cls, status, detail, help, i, tip, chip){
   return `<div class="check ${cls}${tip?' has-tip':''} stagger" style="animation-delay:${(0.02+0.03*i).toFixed(2)}s"${tip?' tabindex="0"':''}>
     <div class="topbar"></div>
-    <div class="ck-head"><span class="ck-dot"></span><span class="ck-name">${name}</span></div>
+    <div class="ck-head"><span class="ck-dot"></span><span class="ck-name">${name}</span>${chip?'<span class="ck-score">'+chip+'</span>':''}</div>
     <div class="ck-status">${status}</div>
     <div class="ck-detail">${detail}</div>
     <div class="ck-help">${help}</div>
@@ -1165,22 +1176,23 @@ function renderNutri(){
   let checksHtml='';
   CATS.forEach((c,i)=>{
     const v=votes[c.key], tot=v[0]+v[1]+v[2];
-    let cls,status,detail;
+    let cls,status,detail,chip='';
     if(!tot){ cls='amber'; status='-'; detail='keine Angaben'; }
     else{
       const score=(v[0]*100 + v[1]*50)/tot;
       cls = score>=CAT_GREEN?'green':(score>=CAT_AMBER?'amber':'red');
       status = cls==='green'?'Gut':(cls==='amber'?'Okay':'Kritisch');
-      detail = Math.round(score)+' / 100 \\u00b7 '+v[0]+'/'+v[1]+'/'+v[2]+' (g/n/s)';
+      detail = v[0]+' gut \\u00b7 '+v[1]+' neutral \\u00b7 '+v[2]+' schlecht';
+      chip = Math.round(score)+'/100';
     }
-    checksHtml += checkCard(c.key, cls, status, detail, c.help, i, tipHtml(foods[c.key]));
+    checksHtml += checkCard(c.key, cls, status, detail, c.help, i, tipHtml(foods[c.key]), chip);
   });
   (function(){
     const ch=avg["Cholesterin (mg)"];
     const cls = ch<=CHOL_GREEN?'green':(ch<=CHOL_AMBER?'amber':'red');
     const status = cls==='green'?'Gut':(cls==='amber'?'Okay':'Hoch');
     const detail = '\\u00d8 '+Math.round(ch).toLocaleString('de')+' mg/Tag (Ziel \\u2264'+CHOL_GREEN+')';
-    checksHtml += checkCard('Cholesterin', cls, status, detail, 'weniger ist besser - Ziel unter '+CHOL_GREEN+' mg/Tag', 3, tipCholHtml(topChol(wd)));
+    checksHtml += checkCard('Cholesterin', cls, status, detail, 'weniger ist besser - Ziel unter '+CHOL_GREEN+' mg/Tag', 3, tipCholHtml(topChol(wd)), Math.round(ch)+' mg');
   })();
 
   let micros=Object.keys(u.ref).map(k=>{
@@ -1198,7 +1210,7 @@ function renderNutri(){
     <div class="cg-txt"><h3>Gesamtdeckung</h3>
     <p>Ø <b>${Math.round(cov)} %</b> der DGE-Tagesreferenz über ${micros.length} Mikronährstoffe · gedeckelt bei 100 %</p></div></div>`;
 
-  micros.sort((x,y)=> curSort==='worst' ? x.pct-y.pct : y.pct-x.pct);
+  micros.sort((x,y)=> curSort==='worst' ? x.pctRaw-y.pctRaw : y.pctRaw-x.pctRaw);
   let barsHtml=micros.map((m,i)=>{
     const full=m.pct>=99.5?' full':'';
     return `<div class="brow stagger" style="animation-delay:${(0.02*i).toFixed(2)}s">
