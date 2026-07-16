@@ -582,7 +582,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <title>Brudi-Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#15130F; --panel:#1E1B16; --panel2:#211D17; --border:#322C23;
@@ -592,7 +592,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     --display:'Bricolage Grotesque',sans-serif;
     --body:'Familjen Grotesk',sans-serif;
     --mono:'DM Mono',monospace;
-    --num:'Inter','Familjen Grotesk',sans-serif;
     --darkink:#15130F;
   }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -639,7 +638,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .goals .goalrow{display:flex;align-items:baseline;justify-content:space-between;padding:13px 0;border-bottom:1px solid rgba(237,230,216,.08)}
   .goals .goalrow:last-child{border-bottom:none}
   .goals .gk{font-size:14px;color:var(--muted)}
-  .goals .gv{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:18px;font-weight:500;color:var(--text);text-align:right}
+  .goals .gv{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text);text-align:right}
   .goals .gv small{font-size:12px;color:var(--faint)}
   .goals .gv.accent{color:var(--accent)}
   .goals .gv.macro{font-size:13px}
@@ -654,7 +653,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .progress{margin-bottom:16px;padding-bottom:15px;border-bottom:1px dashed var(--border)}
   .progress .prow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
   .progress .pk{font-size:13px;color:var(--text);font-weight:500}
-  .progress .ppct{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:17px;font-weight:500;color:var(--accent)}
+  .progress .ppct{font-family:var(--mono);font-size:17px;font-weight:500;color:var(--accent)}
   .progress .ptrack{height:10px;background:var(--panel2);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
   .progress .pfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .7s cubic-bezier(.2,.8,.2,1)}
   .progress .pcap{margin-top:8px;font-family:var(--body);font-size:12px;color:var(--muted);line-height:1.5}
@@ -692,7 +691,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .dvg .fill.green{background:linear-gradient(90deg,rgba(91,209,106,.35),rgba(91,209,106,.85))}
   .dvg .fill.amber{background:linear-gradient(90deg,rgba(240,192,74,.85),rgba(240,192,74,.4))}
   .dvg .fill.red{background:linear-gradient(90deg,rgba(255,92,87,.9),rgba(255,92,87,.4))}
-  .dvg .dval{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12px;font-weight:500;white-space:nowrap;text-align:left}
+  .dvg .dval{font-family:var(--mono);font-size:12px;font-weight:500;white-space:nowrap;text-align:left}
   .dvg .dval.green{color:var(--green)} .dvg .dval.amber{color:var(--amber)} .dvg .dval.red{color:var(--red)}
   .dvg .dflag{color:var(--amber);font-size:11px;margin-left:5px;cursor:help}
   .metric-toggle{display:flex;gap:5px;flex-wrap:nowrap}
@@ -740,9 +739,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .check .ck-name{font-family:var(--display);font-weight:600;font-size:14.5px}
   .check .ck-status{font-family:var(--display);font-weight:700;font-size:23px;letter-spacing:-.01em;margin-top:6px}
   .check.green .ck-status{color:var(--green)} .check.amber .ck-status{color:var(--amber)} .check.red .ck-status{color:var(--red)}
-  .check .ck-detail{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:11px;color:var(--muted);margin-top:3px}
+  .check .ck-detail{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
   .check .ck-help{font-size:11px;color:var(--faint);margin-top:9px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .check .ck-score{margin-left:auto;font-family:var(--num);font-variant-numeric:tabular-nums;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;flex:none}
+  .check .ck-score{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;flex:none}
   .check.green .ck-score{color:var(--green);background:rgba(91,209,106,.14)}
   .check.amber .ck-score{color:var(--amber);background:rgba(240,192,74,.14)}
   .check.red .ck-score{color:var(--red);background:rgba(255,92,87,.16)}
@@ -768,7 +767,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   @media(max-width:560px){.brow{grid-template-columns:120px 1fr 44px;gap:8px}}
   .bname{display:flex;flex-direction:column;gap:1px;min-width:0}
   .bname .bn{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bname .bamt{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:10px;color:var(--faint);white-space:nowrap}
+  .bname .bamt{font-family:var(--mono);font-size:10px;color:var(--faint);white-space:nowrap}
   .btrack{position:relative;height:22px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;overflow:hidden}
   .btrack::after{content:'';position:absolute;right:0;top:0;bottom:0;width:2px;background:rgba(237,230,216,.14)}
   .bfill{position:absolute;top:0;left:0;height:100%;border-radius:6px 0 0 6px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
@@ -776,7 +775,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .bfill.amber{background:linear-gradient(90deg,rgba(240,192,74,.5),rgba(240,192,74,.95))}
   .bfill.red{background:linear-gradient(90deg,rgba(255,92,87,.55),rgba(255,92,87,.95))}
   .bfill.full{border-radius:6px}
-  .bpct{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12px;font-weight:500;text-align:right}
+  .bpct{font-family:var(--mono);font-size:12px;font-weight:500;text-align:right}
   .bpct.green{color:var(--green)} .bpct.amber{color:var(--amber)} .bpct.red{color:var(--red)}
   .sortbtns{display:flex;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:4px}
   .sortbtns button{font-family:var(--mono);font-size:11px;color:var(--muted);background:none;border:none;
@@ -786,9 +785,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   /* ---- SVG-Chart (Wochendurchschnitt) ---- */
   .plot .wsvg{display:block;width:100%;height:auto;overflow:visible}
   .wsbar{fill:url(#wgrad)}
-  .wsval{fill:var(--text);font-family:var(--num);font-variant-numeric:tabular-nums;font-size:13px;font-weight:500;text-anchor:middle}
+  .wsval{fill:var(--text);font-family:var(--mono);font-size:13px;font-weight:500;text-anchor:middle}
   .wsref{stroke:var(--green);stroke-width:1.5;stroke-dasharray:5 4;opacity:.9}
-  .wsreft{fill:var(--green);font-family:var(--num);font-variant-numeric:tabular-nums;font-size:11px;text-anchor:start}
+  .wsreft{fill:var(--green);font-family:var(--mono);font-size:11px;text-anchor:start}
 
   /* ---- SVG-Gauge (Gesamtdeckung Mikronaehrstoffe) auf der Naehrstoff-Seite ----
      Echtes Chart-Element, damit die Seite auch bei Leni-Datenluecken rendert. */
@@ -972,7 +971,6 @@ function renderKcal(){
 
     <div class="panel stagger" style="animation-delay:.22s;margin-bottom:16px">
       <div class="chart-title"><h2>Kaloriendifferenz - letzte 7 Tage</h2></div>
-      <div class="chart-sub">Differenz zum Tagesziel von ${u.goalIntake.toLocaleString('de')} kcal · <span style="color:var(--green)">grün = unter Ziel</span> · <span style="color:var(--amber)">gold = über Ziel</span> · <span style="color:var(--red)">rot = über Bedarf</span> (neueste oben)</div>
       <div class="dvg">
         ${last7.map(x=>{
           const diff=x.kcal-u.goalIntake, cls=classify(u,x.kcal);
