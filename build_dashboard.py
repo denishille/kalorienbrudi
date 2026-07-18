@@ -383,7 +383,7 @@ def build_kcal_data(pages, analyse_kcal=None):
     raw = {k: [] for k in PERSON_CONFIG}
     # Tage, die in Notion existieren, aber keine Kalorien tragen (v.a. Leni):
     # werden NICHT gewertet, aber gezaehlt und im Dashboard gekennzeichnet.
-    skipped = {k: 0 for k in PERSON_CONFIG}
+    skipped = {k: [] for k in PERSON_CONFIG}
     for pg in pages:
         props = pg.get("properties", {})
         person = select_name(props, "Person")
@@ -394,7 +394,7 @@ def build_kcal_data(pages, analyse_kcal=None):
         if d is None:
             continue
         if kcal is None:
-            skipped[person] += 1
+            skipped[person].append(d)
             continue
         raw[person].append({
             "d": d,
@@ -412,12 +412,14 @@ def build_kcal_data(pages, analyse_kcal=None):
         entries = sorted(raw[person], key=lambda x: x["d"])
         days = []
         mismatch = 0
+        mismatch_list = []
         for e in entries:
             day = {"d": e["d"], "kcal": e["kcal"], "p": e["p"], "c": e["c"], "f": e["f"]}
             s = analyse_kcal.get((person, e["d"]))
             if s and abs(s - e["kcal"]) / max(e["kcal"], 1) > KCAL_TOL:
                 day["flag"] = True
                 mismatch += 1
+                mismatch_list.append({"d": e["d"], "t": round(e["kcal"]), "s": round(s)})
             days.append(day)
         # Fallback auf Standardwerte, wenn Notion die Spalte durchgehend leer laesst.
         goal_from_data = any(e["goalIntake"] for e in entries)
@@ -442,8 +444,10 @@ def build_kcal_data(pages, analyse_kcal=None):
             "days": days,
             "quality": {
                 "trackedDays": len(days),
-                "skippedDays": skipped[person],
+                "skippedDays": len(skipped[person]),
+                "skippedList": sorted(skipped[person]),
                 "mismatchDays": mismatch,
+                "mismatchList": mismatch_list,
                 "goalFromData": goal_from_data,
                 "zielFromData": ziel_from_data,
                 "weightFromData": bool(weights),
@@ -507,10 +511,27 @@ def build_nutri_data(pages, composite_counts=None):
                     if nm:
                         day["cf"][c][1].append(nm)
         days = [bydate[k] for k in sorted(bydate)]
+        # Top-Quellen je Naehrstoff aus dem eigenen Log (Klick auf Balken)
+        nut_src = {k: {} for k in NUM_KEYS}
+        for e in raw[person]:
+            nm = canon.get(e.get("name"))
+            if not nm or nm.startswith("Ausgleich"):
+                continue
+            for k in NUM_KEYS:
+                v = e[k]
+                if v and v > 0:
+                    t = nut_src[k].setdefault(nm, [0.0, 0])
+                    t[0] += v
+                    t[1] += 1
+        nut_top = {}
+        for k, foods in nut_src.items():
+            best = sorted(foods.items(), key=lambda x: -x[1][0])[:3]
+            nut_top[k] = [[n, round(t[0] / t[1], 2)] for n, t in best]
         data[person] = {
             "accent": cfg["accent"], "accent2": cfg["accent2"],
             "ref": REF[cfg["sex"]],
             "days": days,
+            "nutTop": nut_top,
             "quality": {
                 "compositeItems": composite_counts.get(person, 0),
             },
@@ -646,7 +667,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .goals .gv .std{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:4px}
   .goals .dq-note{margin-top:14px;background:rgba(240,192,74,.10);border:1px solid rgba(240,192,74,.32);
     border-radius:12px;padding:11px 14px;font-family:var(--body);font-size:12px;line-height:1.6;color:var(--amber)}
-  .goals .dq-note a{color:var(--amber);font-weight:500;text-decoration:none;display:inline-block;margin-top:6px;border-bottom:1px solid rgba(240,192,74,.5)}
+  .goals .dq-note a{color:var(--amber);font-weight:500;text-decoration:none;display:inline-block;margin-top:6px;border-bottom:1px solid rgba(240,192,74,.5);cursor:pointer}
+  .dq-details{margin-top:9px;padding-top:4px;border-top:1px solid rgba(240,192,74,.25)}
+  .dq-details .dqd-h{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:8px 0 3px}
+  .dq-details .dqd-row{display:flex;justify-content:space-between;gap:12px;font-size:11.5px;color:var(--text);line-height:1.6;flex-wrap:wrap}
   .goals .dq-note .dqh{color:var(--faint);letter-spacing:.14em;text-transform:uppercase;font-size:9.5px;display:block;margin-bottom:5px}
   .goals .dq-note div{color:var(--muted)}
   .goals .dq-note b{color:var(--text);font-weight:500}
@@ -764,6 +788,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .bars{display:flex;flex-direction:column;gap:5px}
   .brow{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:12px;padding:6px 8px;border-radius:9px;transition:background .15s}
   .brow:hover{background:rgba(237,230,216,.05)}
+  .brow{cursor:pointer}
+  .bsrc{padding:2px 10px 10px;font-size:11.5px;line-height:1.55;color:var(--muted)}
+  .bsrc b{color:var(--text);font-weight:500}
   @media(max-width:560px){.brow{grid-template-columns:120px 1fr 44px;gap:8px}}
   .bname{display:flex;flex-direction:column;gap:1px;min-width:0}
   .bname .bn{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -919,7 +946,12 @@ function renderKcal(){
   if(q.mismatchDays) dqItems.push('<div><b>'+q.mismatchDays+'</b> Tag(e): Total weicht von Einzelposten-Summe ab</div>');
   if(q.zielFromData===false) dqItems.push('<div>Zielgewicht ist Standardwert (nicht aus Notion)</div>');
   if(q.goalFromData===false) dqItems.push('<div>Kalorienziel ist Standardwert (nicht aus Notion)</div>');
-  const dqNote = dqItems.length ? '<div class="dq-note"><span class="dqh">\\u26a0 Datenqualit\\u00e4t</span>'+dqItems.join('')+'<a href="https://github.com/denishille/kalorienbrudi/tree/main/loop/reports" target="_blank" rel="noopener">Details ansehen \\u2192</a></div>' : '';
+  let dqDetail='';
+  if((q.mismatchList||[]).length) dqDetail+='<div class="dqd-h">Abweichende Tage (Total \\u2260 Einzelposten)</div>'+q.mismatchList.map(m=>'<div class="dqd-row"><span>'+fmtDay(m.d)+'</span><span>'+m.t.toLocaleString('de')+' \\u2260 '+m.s.toLocaleString('de')+' kcal</span></div>').join('');
+  if((q.skippedList||[]).length) dqDetail+='<div class="dqd-h">Ohne Kalorien-Eintrag</div><div class="dqd-row"><span>'+q.skippedList.map(fmtDay).join(', ')+'</span></div>';
+  const dqNote = dqItems.length ? '<div class="dq-note"><span class="dqh">\\u26a0 Datenqualit\\u00e4t</span>'+dqItems.join('')
+    +(dqDetail?'<a id="dqtoggle" href="javascript:void(0)">Details ansehen \\u2193</a><div class="dq-details" id="dqdetails" hidden>'+dqDetail+'</div>':'')
+    +'</div>' : '';
   const counts={green:0,amber:0,red:0};
   u.days.forEach(x=>counts[classify(u,x.kcal)]++);
   const total=u.days.length, pctNum=n=>total?Math.round(n/total*100):0, pct=n=>total?pctNum(n)+'%':'-';
@@ -1001,6 +1033,8 @@ function renderKcal(){
   `;
   document.getElementById('mt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curMetric=b.dataset.m;renderKcal();});
   document.getElementById('pt').querySelectorAll('button').forEach(b=>b.onclick=()=>{curPeriod=b.dataset.p;renderKcal();});
+  const dqa=document.getElementById('dqtoggle');
+  if(dqa) dqa.onclick=()=>{const d=document.getElementById('dqdetails');d.hidden=!d.hidden;dqa.textContent=d.hidden?'Details ansehen \u2193':'Details ausblenden \u2191';};
   const agg=periodAgg(u.days,curPeriod);
   drawWeekly(PERIOD_LIMIT>0?agg.slice(-PERIOD_LIMIT):agg,u,t);
   document.getElementById('foot').textContent='Stand: __BUILD_DATE__ · '+total+' Tage · Verhältnis 30 % P / 30 % F / 40 % C · automatisch generiert';
@@ -1197,7 +1231,7 @@ function renderNutri(){
     const [name,unit]=splitUnit(k);
     const a=avg[k]||0, ref=u.ref[k];
     const pctRaw=ref>0?(a/ref*100):0, pct=Math.min(100,pctRaw);
-    return {name,unit,avg:a,ref,pct,pctRaw,color:micColor(pct)};
+    return {key:k,name,unit,avg:a,ref,pct,pctRaw,color:micColor(pct)};
   });
   /* Gesamtdeckung als echtes SVG-Chart (Donut) - garantiert ein gerendertes
      Chart-Element auf der Nährstoff-Seite, auch bei Leni-Datenlücken. */
@@ -1211,11 +1245,15 @@ function renderNutri(){
   micros.sort((x,y)=> curSort==='worst' ? x.pctRaw-y.pctRaw : y.pctRaw-x.pctRaw);
   let barsHtml=micros.map((m,i)=>{
     const full=m.pct>=99.5?' full':'';
-    return `<div class="brow stagger" style="animation-delay:${(0.02*i).toFixed(2)}s">
+    const src=(u.nutTop&&u.nutTop[m.key])||[];
+    const srcHtml=src.length
+      ? 'Gute Quellen aus deinem Log: '+src.map(x=>'<b>'+x[0]+'</b> (\\u00d8 '+fmtN(x[1])+' '+m.unit+')').join(' \\u00b7 ')
+      : 'Noch keine Quelle mit '+m.name+' im Log.';
+    return `<div class="brow stagger" style="animation-delay:${(0.02*i).toFixed(2)}s" title="Klick zeigt Lebensmittel-Quellen">
       <div class="bname"><span class="bn">${m.name}</span><span class="bamt">${fmtN(m.avg)} / ${fmtN(m.ref)} ${m.unit}</span></div>
       <div class="btrack"><div class="bfill ${m.color}${full}" style="width:${m.pct.toFixed(1)}%"></div></div>
       <div class="bpct ${m.color}">${Math.round(m.pctRaw)}%</div>
-    </div>`;
+    </div><div class="bsrc" hidden>${srcHtml}</div>`;
   }).join('');
 
   C.innerHTML = timebar + `
@@ -1230,11 +1268,12 @@ function renderNutri(){
           <button data-s="best" class="${curSort==='best'?'active':''}">Beste zuerst</button>
         </div>
       </div>
-      <div class="bars">${barsHtml}</div>
+      <div class="bars" id="nbars">${barsHtml}</div>
     </div>`;
 
   document.getElementById('ntime').querySelectorAll('button').forEach(b=>b.onclick=()=>{curNPeriod=b.dataset.p;renderNutri();});
   document.getElementById('nsort').querySelectorAll('button').forEach(b=>b.onclick=()=>{curSort=b.dataset.s;renderNutri();});
+  document.querySelectorAll('#nbars .brow').forEach(el=>{el.onclick=()=>{const s=el.nextElementSibling;if(s&&s.classList.contains('bsrc'))s.hidden=!s.hidden;};});
   document.getElementById('foot').textContent='Stand: __BUILD_DATE__ - '+curUser+' - '+NPERIODS[curNPeriod]+' - Zielwerte: DGE-Tagesreferenz ('+(curUser==='Denis'?'m':'w')+') - automatisch generiert';
 }
 
