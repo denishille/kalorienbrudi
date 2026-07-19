@@ -618,7 +618,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{background:var(--bg);color:var(--text);font-family:var(--body)}
   body{
-    padding:26px;
+    padding:26px;padding-top:92px;
     background-image:radial-gradient(circle at 12% 0%, rgba(77,166,255,.06), transparent 42%),
                      radial-gradient(circle at 100% 100%, rgba(255,111,181,.05), transparent 40%);
     min-height:100vh;transition:background-color .35s,color .35s;
@@ -627,14 +627,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
   .wrap{max-width:1080px;margin:0 auto}
 
+  /* ---- fixe Top-Navigation ---- */
+  .topnav{position:fixed;top:0;left:0;right:0;z-index:60;
+    background:rgba(33,29,23,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--border);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+  .tn-inner{max-width:1080px;margin:0 auto;padding:10px 26px;display:flex;align-items:center;
+    justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .topnav .pagenav{margin-bottom:0}
+  .pagenav button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round;opacity:.85;flex:none}
+  .topnav .toggle{padding:4px;border-radius:12px;background:var(--panel2)}
+  .topnav .toggle button{padding:7px 14px;font-size:13.5px}
+
   header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:22px}
   .brand{display:flex;flex-direction:column;gap:2px}
   .brand .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.30em;text-transform:uppercase;color:var(--muted)}
   .brand h1{font-family:var(--display);font-weight:800;font-size:33px;letter-spacing:-.02em;line-height:1}
   .brand h1 b{color:var(--accent);transition:color .4s}
 
-  .pagenav{display:flex;align-items:center;gap:11px;margin-bottom:16px}
-  .pagenav button{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  .pagenav{display:flex;align-items:center;gap:11px}
+  .pagenav button{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
     color:var(--faint);background:none;border:none;cursor:pointer;padding:2px 0;transition:.2s}
   .pagenav button:hover{color:var(--muted)}
   .pagenav button.active{color:var(--accent)}
@@ -850,20 +862,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <div class="grain"></div>
+<nav class="topnav">
+  <div class="tn-inner">
+    <nav class="pagenav" id="pageswitch">
+      <button data-pg="kcal" class="active"><svg viewBox="0 0 24 24"><path d="M12 22c4-2 6-5 6-8 0-4-3-6-3-9-2 1-3 3-3 5-1-1-2-3-1.5-5C7 7 6 10 6 14c0 3 2 6 6 8z"/></svg>Kalorien</button>
+      <span class="navsep">/</span>
+      <button data-pg="nutri"><svg viewBox="0 0 24 24"><path d="M4 20C4 11 9 6 20 4c-1 11-6 16-14 16"/><path d="M4 20c3-6 7-10 12-12"/></svg>Nährstoffe</button>
+    </nav>
+    <div class="toggle" id="toggle">
+      <button data-u="Denis" class="active"><span class="dot"></span>Denis</button>
+      <button data-u="Leni"><span class="dot"></span>Leni</button>
+    </div>
+  </div>
+</nav>
 <div class="wrap">
-  <nav class="pagenav" id="pageswitch">
-    <button data-pg="kcal" class="active">Kalorien</button>
-    <span class="navsep">/</span>
-    <button data-pg="nutri">Nährstoffe</button>
-  </nav>
   <header>
     <div class="brand">
       <span class="kicker" id="kicker">Kalorienbrudi</span>
       <h1 id="title">Dashboard <b>Denis</b></h1>
-    </div>
-    <div class="toggle" id="toggle">
-      <button data-u="Denis" class="active"><span class="dot"></span>Denis</button>
-      <button data-u="Leni"><span class="dot"></span>Leni</button>
     </div>
   </header>
   <div id="content"></div>
