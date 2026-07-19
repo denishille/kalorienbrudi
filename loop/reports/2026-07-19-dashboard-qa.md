@@ -4,50 +4,58 @@
 
 ## Funktionale Checks
 - ✅ 6 Steuerelemente geklickt
-- ✅ 1 Charts gerendert
+- ✅ 3 Charts gerendert
 
 ## Funktionale Auffälligkeiten
 - 🟢 keine
 
 ## UX-/Design-Bewertung (Claude Vision)
 
-# Design/UX Review – Kalorien-Dashboard
+# UX-Review: Kalorien-Tracking-Dashboard
 
-## Gesamtnote: **7 / 10**
+## Gesamtnote: **6,5 / 10**
 
-Solide, moderne Basis mit gutem Dark-Theme und klarer Farbsemantik (Ampel). Schwächen liegen in Detail-Konsistenz, Whitespace-Rhythmus und Chart-Lesbarkeit. Mit gezieltem Feinschliff sehr nah an Top-Niveau.
+Solide, funktionale Datendichte mit klarer Nutzer-Zuordnung über Farbe (Pink/Blau). Aber: inkonsistente Card-Stile, schwache Whitespace-Disziplin, Chart-Lesbarkeit teils mangelhaft, und der User-Switcher hängt visuell zusammenhanglos in der Mitte.
 
 ---
 
 ## Konkrete Verbesserungen (priorisiert)
 
-**1. User-Switch vereinheitlichen (Desktop vs. Mobil)**
-Element: Denis/Leni-Toggle. Aktuell auf Desktop Pill-rechts, auf Mobil Pill-links + andere Höhe → wirkt inkonsistent. Zielzustand: identische Segmented-Control-Komponente, gleiche Höhe/Radius/Padding auf beiden Breakpoints, aktiver Nutzer immer links.
+**1. User-Switcher fixieren & aus dem Content-Flow lösen** *(Hoch)*
+- Element: „Denis / Leni“-Toggle (Desktop mittig überlappend, Mobil im Header)
+- Ziel: Als persistente Segmented-Control oben rechts im Header verankern, konsistent auf beiden Views. Aktuell wirkt er wie ein zufälliger Divider zwischen zwei Sektionen.
 
-**2. Balken-Prozentwerte hierarchisch entkoppeln**
-Element: Mikronährstoff-Liste (Vitamin D 18% … Selen 127%). Die grauen `x / y`-Rohwerte konkurrieren mit dem farbigen %. Zielzustand: %-Wert als dominante Zahl (semibold, 16px, farbcodiert), Rohwerte kleiner (11px, 40% Opacity). Zusätzlich subtile 50%- und 100%-Markierungslinien im Balken-Track zur schnelleren Einordnung.
+**2. Card-Rahmen vereinheitlichen** *(Hoch)*
+- Element: Health-Checkpoint-Cards (farbige 2px-Borders) vs. dunkle Content-Cards (kein/subtiler Border)
+- Ziel: Ein System — dezenter 1px-Border (`rgba(255,255,255,0.08)`) plus farbiger Status nur über einen linken 3px-Accent-Bar oder Dot. Die vollflächigen Neon-Rahmen wirken laut und uneinheitlich.
 
-**3. Whitespace-Rhythmus & Card-Padding vereinheitlichen**
-Element: Alle Cards. Padding variiert (Checkpoint-Cards eng, Gesamtdeckung-Card sehr luftig). Zielzustand: konsistentes 8pt-Grid, Card-Padding 24px, Sektionsabstand 32px. Der große Leerraum rechts neben „Gesamtdeckung 67%" strukturiert füllen (z.B. 2–3 Micro-KPIs).
+**3. Balken-Charts: 100%-Marker + Zielsegmentierung** *(Hoch)*
+- Element: Nährstoff-Balken (Screenshot 1)
+- Ziel: Vertikale 100%-Referenzlinie einziehen, damit „über/unter Ziel“ sofort lesbar ist. Prozente rechtsbündig gleich ausrichten (aktuell OK), aber Rot→Gelb→Grün-Verlauf durch feste Ampel-Stufen ersetzen (Verlauf verwischt die Aussage bei ~50%).
 
-**4. Kalorien-Wasserfall-Chart lesbarer machen (Mobil)**
-Element: „Kaloriendifferenz – letzte 7 Tage". Balken sind winzig, Nulllinie unklar, grün/gold-Logik nicht erklärt. Zielzustand: zentrierte Nulllinie sichtbar markieren, Balken min. 20px hoch, kcal-Wert rechtsbündig ausgerichtet, kurze Legende (grün = Defizit / gold = Überschuss).
+**4. Typo-Hierarchie schärfen** *(Mittel)*
+- Element: Werte-Zeilen „3,51 / 20 µg", Datums-/Labelzeilen
+- Ziel: Sekundärtext auf einheitliches Grau (`#8A8A8A`), monospace nur für Zahlen. Aktuell konkurrieren Label, Wert und Einheit in ähnlichem Kontrast → alles gleich wichtig = nichts wichtig.
 
-**5. Kontrast der Meta-/Sekundärtexte anheben**
-Element: Kleine Graubeschriftungen (Zeitfenster, Fußzeilen, „Ø pro Tag vs…"). Kontrast teils <3:1 → WCAG-kritisch. Zielzustand: Sekundärtext auf min. #9AA0A6 (≥4.5:1 gegen Hintergrund) anheben.
+**5. Kalorien-Balkendiagramm (Mobil) lesbar machen** *(Mittel)*
+- Element: „Kaloriendifferenz letzte 7 Tage“ (mittiges Diverging-Chart)
+- Ziel: Klare Nulllinie sichtbar, Grün (Defizit) / Gelb (Überschuss) mit Baseline-Achse. Aktuell schweben die Balken kontextlos; Zusammenhang Balkenlänge↔kcal ist nicht sofort erkennbar.
 
-**6. Typografie-Konsistenz Überschriften**
-Element: „Dashboard Leni/Denis" nutzt Mixed-Case-Highlight in Pink/Blau – gut. Aber Section-Header („Gesundheits-Checkpoints", „Mikronährstoffe") variieren in Gewicht/Größe. Zielzustand: klare Type-Scale definieren (H1 32, H2 20 semibold, Label 12 uppercase tracked) und durchziehen.
+**6. Whitespace & Sektionsabstände** *(Mittel)*
+- Element: Desktop-Übergang Checkpoints → Gesamtdeckung → Nährstoffe
+- Ziel: Konsistentes 48px-Section-Spacing, Gesamtdeckungs-Card wirkt halb-abgeschnitten (großer leerer Raum rechts). Donut + Text linksbündig zentrieren, ungenutzten rechten Whitespace für Mini-Legende/Trend nutzen.
 
-**7. Status-Badges & Ampel-Punkte vereinheitlichen**
-Element: „Okay/Kritisch/Gut"-Zustände + Score-Badges (60/100). Zielzustand: einheitliche Pill-Badges mit gefülltem Farbhintergrund (10% Opacity) statt gemischt aus Text-Farbe + Border-Cards. Der Score sollte visuell an den Status gekoppelt sein (gleiche Akzentfarbe).
+**7. Farb-Overload reduzieren** *(Mittel)*
+- Element: Pink „Leni", Blau „Denis", plus Ampel-Rot/Gelb/Grün überall
+- Ziel: Nutzerfarbe nur als Akzent (Name, Switcher, 1 Highlight). Statusampel getrennt halten. Aktuell konkurriert Pink-Titel mit rotem Chart-Bereich → visuelles Rauschen.
 
-**8. KPI-Karten Mobil (27/26/4/57) angleichen**
-Element: 2×2 KPI-Grid. Farbige Topline nur teilweise, unterschiedliche Zahlengrößen wirken. Zielzustand: einheitliche Card-Struktur (Topline-Akzent 3px in Statusfarbe für alle), gleiche Zahlengröße, Label-Zeile immer 2-zeilig gleich ausgerichtet.
+**8. „Datenqualität“-Warnung als echte Alert-Komponente** *(Niedrig)*
+- Element: Warn-Box (Screenshot 2)
+- Ziel: Klar abgesetztes Warn-Pattern (Icon links, `#FFB020`-Border, dezenter Fill), „Details ansehen" als sichtbarer Button-Stil statt reiner Textlink.
 
 ---
 
-**Quick Wins zuerst:** #2, #5, #7 (hoher Impact, geringer Aufwand).
+**Quick Win:** Punkte 1–3 heben die App am schnellsten auf „modern & clean" — sie betreffen Konsistenz und Datenklarheit, die aktuell am meisten leiden.
 
 ## Screenshots
 - `reports/shots/desktop.png`
