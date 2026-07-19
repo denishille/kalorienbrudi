@@ -216,9 +216,7 @@ def check_kcal_consistency(kcal_pages, analyse_kcal):
 # belastbar. Marken-/Fertigprodukte bleiben bewusst EINE Zeile (kein Split).
 # Das Flag bricht den Build nicht ab - es warnt und wird im Dashboard angezeigt.
 # ----------------------------------------------------------------------------
-COMPOSITE_HINTS = [" mit ", " + ", " und ", " auf ", "bowl", "gratin", "auflauf",
-                   "pfanne", "salat mit", "teller", "basis", "pad krapao",
-                   "curry", "wok", "eintopf", "pizza", "burger", "sandwich"]
+COMPOSITE_HINTS = [" mit ", " + ", " und ", " auf "]
 # Marken/Fertigprodukte: bleiben EINE Zeile, nicht als Sammelposten flaggen.
 BRAND_HINTS = ["rewe", "ehrmann", "gustavo", "nuii", "ben & jerry", "koelln",
                "kellogg", "biscoff", "finello", "buko", "billie green", "arla",
@@ -229,8 +227,9 @@ BRAND_HINTS = ["rewe", "ehrmann", "gustavo", "nuii", "ben & jerry", "koelln",
 
 def looks_like_composite(name):
     """True, wenn der Name nach einem zusammengesetzten Gericht/Sammelposten
-    aussieht und NICHT als Markenprodukt erkannt wird."""
-    low = (name or "").lower()
+    aussieht und NICHT als Markenprodukt erkannt wird. Klammer-Zusaetze
+    (Mengen, Zutaten-Erlaeuterungen) werden vor der Pruefung entfernt."""
+    low = re.sub(r"\([^)]*\)", "", (name or "")).lower().strip()
     if not low:
         return False
     if any(b in low for b in BRAND_HINTS):
