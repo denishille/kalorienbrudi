@@ -804,9 +804,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   @media(max-width:820px){.checks{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:460px){.checks{grid-template-columns:1fr}}
   .check{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px 20px 18px;overflow:hidden;display:flex;flex-direction:column;min-height:150px}
-  .check .topbar{position:absolute;top:0;left:0;width:100%;height:3px}
-  .check.green .topbar{background:var(--green)} .check.amber .topbar{background:var(--amber)} .check.red .topbar{background:var(--red)}
-  .check.green{border-color:rgba(91,209,106,.45)} .check.amber{border-color:rgba(240,192,74,.45)} .check.red{border-color:rgba(255,92,87,.5)}
+  .check .topbar{display:none}
   .check .ck-head{display:flex;align-items:center;gap:8px;margin-bottom:3px}
   .check .ck-dot{width:11px;height:11px;border-radius:50%;flex:none}
   .check.green .ck-dot{background:var(--green);box-shadow:0 0 10px rgba(91,209,106,.5)}
