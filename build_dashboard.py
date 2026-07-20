@@ -625,7 +625,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{background:var(--bg);color:var(--text);font-family:var(--body)}
   body{
-    padding:26px;padding-top:100px;
+    padding:26px;padding-top:94px;
     background-image:radial-gradient(circle at 12% 0%, rgba(77,166,255,.06), transparent 42%),
                      radial-gradient(circle at 100% 100%, rgba(255,111,181,.05), transparent 40%);
     min-height:100vh;transition:background-color .35s,color .35s;
@@ -639,7 +639,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .topnav{position:fixed;top:0;left:0;right:0;z-index:60;
     background:rgba(33,29,23,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border-bottom:1px solid var(--border);box-shadow:0 6px 24px rgba(0,0,0,.25)}
-  .tn-inner{max-width:1080px;margin:0 auto;padding:8px 26px;display:flex;align-items:center;
+  .tn-inner{--nvh:44px;max-width:1080px;margin:0 auto;padding:16px 26px;display:flex;align-items:center;
     justify-content:space-between;gap:14px;flex-wrap:nowrap}
   .topnav .pagenav{margin-bottom:0}
   .pagenav button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;
@@ -647,12 +647,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .topnav .toggle{padding:4px;border-radius:999px;background:var(--panel2)}
   .topnav .toggle button{padding:7px 14px;font-size:13.5px}
   @media(max-width:600px){
-    body{padding-top:72px}
-    .tn-inner{padding:7px 26px;gap:8px}
+    body{padding-top:82px}
+    .tn-inner{--nvh:38px;padding:14px 26px;gap:8px}
     .pagenav{gap:3px;padding:3px}
-    .pagenav button{font-size:9px;letter-spacing:.02em;gap:5px;height:28px;padding:0 9px}
+    .pagenav button{font-size:9px;letter-spacing:.02em;gap:5px;padding:0 9px}
     .pagenav button svg{width:12px;height:12px}
-    .user-btn{height:36px;padding:0 10px 0 8px;gap:5px;flex:none}
+    .user-btn{padding:0 10px 0 8px;gap:5px}
     .user-btn>svg{width:16px;height:16px}
     .user-btn .user-cur{font-size:12.5px}
     .user-btn .chev{width:12px;height:12px}
@@ -664,8 +664,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .brand h1{font-family:var(--display);font-weight:800;font-size:32px;letter-spacing:-.02em;line-height:1}
   .brand h1 b{color:var(--accent);transition:color .4s}
 
-  .pagenav{display:flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:4px}
-  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 16px;
+  .pagenav{display:flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:4px;height:var(--nvh);box-sizing:border-box}
+  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:100%;padding:0 16px;
     border-radius:9px;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;line-height:1;
     color:var(--faint);background:none;border:none;cursor:pointer;transition:.18s}
   .pagenav button:hover{color:var(--text);background:rgba(255,255,255,.04)}
@@ -682,9 +682,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .toggle button.active[data-u="Denis"]{background:#4DA6FF}
   .toggle button.active[data-u="Leni"]{background:#FF6FB5}
   /* ---- User-Menü (Icon + Popover) ---- */
-  .usermenu{position:relative}
-  .user-btn{display:inline-flex;align-items:center;gap:8px;height:44px;box-sizing:border-box;background:var(--panel2);
-    border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:0 15px 0 12px;color:var(--text);cursor:pointer;transition:.18s}
+  .usermenu{position:relative;display:flex;flex:none}
+  .user-btn{display:inline-flex;align-items:center;gap:8px;height:var(--nvh);box-sizing:border-box;background:var(--panel2);
+    border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:0 14px 0 11px;color:var(--text);cursor:pointer;transition:.18s;margin:0}
   .user-btn:hover{background:rgba(255,255,255,.05)}
   .user-btn>svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
   .user-btn .user-cur{font-family:var(--display);font-weight:600;font-size:13.5px}
