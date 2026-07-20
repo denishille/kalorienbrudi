@@ -649,8 +649,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   @media(max-width:600px){
     body{padding-top:96px}
     .tn-inner{padding:9px 14px;gap:10px}
-    .pagenav{gap:7px}
-    .pagenav button{font-size:10px;letter-spacing:.06em;gap:5px}
+    .pagenav{gap:4px;padding:4px}
+    .pagenav button{font-size:10px;letter-spacing:.04em;gap:6px;height:34px;padding:0 14px}
+    .user-btn{height:44px;padding:0 13px 0 10px}
     .pagenav button svg{width:13px;height:13px}
     .topnav .toggle button{padding:6px 10px;font-size:12.5px}
   }
@@ -661,12 +662,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .brand h1{font-family:var(--display);font-weight:800;font-size:32px;letter-spacing:-.02em;line-height:1}
   .brand h1 b{color:var(--accent);transition:color .4s}
 
-  .pagenav{display:flex;align-items:center;gap:11px}
-  .pagenav button{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
-    color:var(--faint);background:none;border:none;cursor:pointer;padding:2px 0;transition:.2s}
-  .pagenav button:hover{color:var(--muted)}
-  .pagenav button.active{color:var(--accent)}
-  .pagenav .navsep{color:var(--faint);font-family:var(--mono);font-size:11px}
+  .pagenav{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:5px}
+  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:38px;padding:0 22px;
+    border-radius:10px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;line-height:1;
+    color:var(--faint);background:none;border:none;cursor:pointer;transition:.18s}
+  .pagenav button:hover{color:var(--text);background:rgba(255,255,255,.04)}
+  .pagenav button.active{color:var(--darkink);background:var(--accent)}
+  .pagenav button.active svg{opacity:1}
 
   .toggle{display:flex;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:5px;gap:4px}
   .toggle button{font-family:var(--display);font-weight:600;font-size:15px;color:var(--muted);background:none;border:none;
@@ -677,6 +679,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .toggle button.active{color:var(--darkink)}
   .toggle button.active[data-u="Denis"]{background:#4DA6FF}
   .toggle button.active[data-u="Leni"]{background:#FF6FB5}
+  /* ---- User-Menü (Icon + Popover) ---- */
+  .usermenu{position:relative}
+  .user-btn{display:inline-flex;align-items:center;gap:9px;height:50px;box-sizing:border-box;background:var(--panel2);
+    border:1px solid var(--border);border-radius:999px;padding:0 18px 0 14px;color:var(--text);cursor:pointer;transition:.18s}
+  .user-btn:hover{background:rgba(255,255,255,.05)}
+  .user-btn>svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .user-btn .user-cur{font-family:var(--display);font-weight:600;font-size:14px}
+  .user-btn .chev{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+  .usermenu.open .user-btn .chev{transform:rotate(180deg)}
+  .user-pop{position:absolute;top:calc(100% + 8px);right:0;min-width:150px;background:var(--panel);
+    border:1px solid var(--border);border-radius:12px;padding:5px;box-shadow:0 12px 32px rgba(0,0,0,.4);z-index:70}
+  .user-pop button{display:flex;align-items:center;gap:9px;width:100%;background:none;border:none;cursor:pointer;
+    font-family:var(--display);font-weight:600;font-size:14px;color:var(--muted);padding:9px 12px;border-radius:8px;transition:.15s}
+  .user-pop button:hover{background:rgba(255,255,255,.05);color:var(--text)}
+  .user-pop button.active{color:var(--text);background:rgba(255,255,255,.06)}
+  .user-pop .dot{width:9px;height:9px;border-radius:50%;flex:none}
 
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:24px}
   .panel .label{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);margin-bottom:14px}
@@ -748,7 +766,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .dvg .fill.amber{background:linear-gradient(90deg,rgba(240,192,74,.85),rgba(240,192,74,.4))}
   .dvg .fill.red{background:linear-gradient(90deg,rgba(255,92,87,.9),rgba(255,92,87,.4))}
   .dvg .dv{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;font-weight:500;white-space:nowrap;z-index:3}
-  .dvg .dv.green{color:var(--green)} .dvg .dv.red{color:var(--red)}
+  .dvg .dv.green{color:var(--green)} .dvg .dv.amber{color:var(--amber)} .dvg .dv.red{color:var(--red)}
   .dvg .dval.green{color:var(--green)} .dvg .dval.amber{color:var(--amber)} .dvg .dval.red{color:var(--red)}
   .dvg .dflag{color:var(--amber);font-size:11px;margin-left:5px;cursor:help}
   .metric-toggle{display:flex;gap:5px;flex-wrap:nowrap}
@@ -887,12 +905,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <div class="tn-inner">
     <nav class="pagenav" id="pageswitch">
       <button data-pg="kcal" class="active"><svg viewBox="0 0 24 24"><path d="M12 22c4-2 6-5 6-8 0-4-3-6-3-9-2 1-3 3-3 5-1-1-2-3-1.5-5C7 7 6 10 6 14c0 3 2 6 6 8z"/></svg>Kalorien</button>
-      <span class="navsep">/</span>
       <button data-pg="nutri"><svg viewBox="0 0 24 24"><path d="M4 20C4 11 9 6 20 4c-1 11-6 16-14 16"/><path d="M4 20c3-6 7-10 12-12"/></svg>Nährstoffe</button>
     </nav>
-    <div class="toggle" id="toggle">
-      <button data-u="Denis" class="active"><span class="dot"></span>Denis</button>
-      <button data-u="Leni"><span class="dot"></span>Leni</button>
+    <div class="usermenu" id="usermenu">
+      <button class="user-btn" id="userbtn" aria-label="Nutzer wählen">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        <span class="user-cur" id="usercur">Denis</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="user-pop" id="userpop" hidden>
+        <button data-u="Denis" class="active"><span class="dot" style="background:#4DA6FF"></span>Denis</button>
+        <button data-u="Leni"><span class="dot" style="background:#FF6FB5"></span>Leni</button>
+      </div>
     </div>
   </div>
 </nav>
@@ -1022,12 +1046,9 @@ function renderKcal(){
         <div class="goalrow"><span class="gk">Ziel</span><span class="gv">Abnehmen</span></div>
         <div class="goalrow"><span class="gk">Kalorienziel</span><span class="gv accent">${u.goalIntake.toLocaleString('de')} <small>kcal</small>${q.goalFromData===false?'<span class="std">Std.</span>':''}</span></div>
         <div class="goalrow"><span class="gk">Geplantes Defizit</span><span class="gv">${u.deficitTarget.toLocaleString('de')} <small>kcal</small></span></div>
-        <div class="goalrow"><span class="gk">Erhaltungsbedarf</span><span class="gv">${maintenance(u).toLocaleString('de')} <small>kcal</small></span></div>
-        <div class="goalrow"><span class="gk">Makro-Ziel</span><span class="gv macro"><b>${t.p}</b>P - <b>${t.f}</b>F - <b>${t.c}</b>C <small>g</small></span></div>
         <div class="goalrow"><span class="gk">Startgewicht</span><span class="gv">${u.startWeight!=null?u.startWeight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
         <div class="goalrow"><span class="gk">Aktuelles Gewicht</span><span class="gv">${u.weight!=null?u.weight.toLocaleString('de')+' <small>kg</small>':'-'}</span></div>
         <div class="goalrow"><span class="gk">Zielgewicht</span><span class="gv">${u.zielWeight!=null?u.zielWeight.toLocaleString('de')+' <small>kg</small>':'-'}${q.zielFromData===false?'<span class="std">Std.</span>':''}</span></div>
-        <div class="goalrow"><span class="gk">Letzter Eintrag</span><span class="gv" style="font-size:14px">${fmtDay(u.days[u.days.length-1].d)}</span></div>
         ${dqNote}
       </div>
       <div class="kpis">
@@ -1039,10 +1060,10 @@ function renderKcal(){
     </div>
 
     <div class="panel stagger" style="animation-delay:.22s;margin-bottom:16px">
-      <div class="chart-title"><h2>Kaloriendifferenz - letzte 7 Tage</h2></div>
+      <div class="chart-title"><h2>Zielerreichung - letzte 7 Tage</h2></div>
       <div class="dvg">
         ${last7.map(x=>{
-          const diff=x.kcal-u.goalIntake, cls=diff<=0?'green':'red';
+          const diff=x.kcal-u.goalIntake, cls=classify(u,x.kcal);
           const w=Math.min(Math.abs(diff)/maxAbs*40,40);
           const style=diff<=0?`right:50%;width:${w}%`:`left:50%;width:${w}%`;
           const sign=diff>0?'+':'';
@@ -1340,15 +1361,22 @@ function renderAll(){
   document.querySelectorAll('#pageswitch button').forEach(b=>b.classList.toggle('active', b.dataset.pg===curPage));
   document.getElementById('kicker').textContent = nutri ? 'Nährstoffbrudi' : 'Kalorienbrudi';
   document.getElementById('title').innerHTML = 'Dashboard <b>'+curUser+'</b>';
+  const uc=document.getElementById('usercur'); if(uc) uc.textContent=curUser;
+  document.querySelectorAll('#userpop button').forEach(x=>x.classList.toggle('active', x.dataset.u===curUser));
   if(nutri) renderNutri(); else renderKcal();
 }
 document.getElementById('pageswitch').querySelectorAll('button').forEach(b=>{
   b.onclick=()=>{curPage=b.dataset.pg;renderAll();};
 });
-document.getElementById('toggle').querySelectorAll('button').forEach(b=>{
-  b.onclick=()=>{document.querySelectorAll('#toggle button').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');curUser=b.dataset.u;curMetric='kcal';renderAll();};
+const _um=document.getElementById('usermenu');
+document.getElementById('userbtn').onclick=(e)=>{e.stopPropagation();_um.classList.toggle('open');
+  document.getElementById('userpop').hidden=!_um.classList.contains('open');};
+document.querySelectorAll('#userpop button').forEach(b=>{
+  b.onclick=()=>{curUser=b.dataset.u;curMetric='kcal';
+    _um.classList.remove('open');document.getElementById('userpop').hidden=true;renderAll();};
 });
+document.addEventListener('click',(e)=>{if(!_um.contains(e.target)){_um.classList.remove('open');
+  document.getElementById('userpop').hidden=true;}});
 /* SVG-Chart an die Fensterbreite koppeln: bei Resize neu vermessen/zeichnen. */
 let _rzT;
 window.addEventListener('resize',()=>{clearTimeout(_rzT);_rzT=setTimeout(renderAll,180);});
