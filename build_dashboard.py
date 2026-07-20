@@ -640,22 +640,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     background:rgba(33,29,23,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border-bottom:1px solid var(--border);box-shadow:0 6px 24px rgba(0,0,0,.25)}
   .tn-inner{--nvh:50px;max-width:1132px;margin:0 auto;padding:18px 26px;display:flex;align-items:center;
-    justify-content:space-between;gap:14px;flex-wrap:nowrap}
+    justify-content:space-between;gap:clamp(6px,2vw,14px);flex-wrap:nowrap}
   .topnav .pagenav{margin-bottom:0}
-  .pagenav button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;
+  .pagenav button svg{width:clamp(12px,3.5vw,15px);height:clamp(12px,3.5vw,15px);stroke:currentColor;fill:none;stroke-width:1.8;
     stroke-linecap:round;stroke-linejoin:round;opacity:.85;flex:none}
   .topnav .toggle{padding:4px;border-radius:999px;background:var(--panel2)}
   .topnav .toggle button{padding:7px 14px;font-size:13.5px}
   @media(max-width:600px){
     body{padding-top:90px}
-    .tn-inner{--nvh:42px;padding:15px 26px;gap:8px}
+    .tn-inner{--nvh:42px;padding:15px 26px}
     .pagenav{gap:3px;padding:3px}
-    .pagenav button{font-size:10px;letter-spacing:.02em;gap:5px;padding:0 11px}
-    .pagenav button svg{width:12px;height:12px}
-    .user-btn{padding:0 10px 0 8px;gap:5px}
-    .user-btn>svg{width:16px;height:16px}
-    .user-btn .user-cur{font-size:12.5px}
-    .user-btn .chev{width:12px;height:12px}
   }
 
   header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:22px}
@@ -665,8 +659,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .brand h1 b{color:var(--accent);transition:color .4s}
 
   .pagenav{display:flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:4px;height:var(--nvh);box-sizing:border-box}
-  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:100%;padding:0 20px;
-    border-radius:9px;font-family:var(--mono);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;line-height:1;
+  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:clamp(5px,1.5vw,9px);height:100%;padding:0 clamp(9px,3vw,20px);
+    border-radius:9px;font-family:var(--mono);font-size:clamp(9.5px,2.7vw,11.5px);letter-spacing:.05em;text-transform:uppercase;line-height:1;
     color:var(--faint);background:none;border:none;cursor:pointer;transition:.18s}
   .pagenav button:hover{color:var(--text);background:rgba(255,255,255,.04)}
   .pagenav button.active{color:var(--darkink);background:var(--accent)}
@@ -683,12 +677,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .toggle button.active[data-u="Leni"]{background:#FF6FB5}
   /* ---- User-Menü (Icon + Popover) ---- */
   .usermenu{position:relative;display:flex;flex:none}
-  .user-btn{display:inline-flex;align-items:center;gap:8px;height:var(--nvh);box-sizing:border-box;background:var(--panel2);
-    border:1px solid var(--border);border-radius:12px;padding:0 14px 0 11px;color:var(--text);cursor:pointer;transition:.18s;margin:0}
+  .user-btn{display:inline-flex;align-items:center;gap:clamp(4px,1.4vw,8px);height:var(--nvh);box-sizing:border-box;background:var(--panel2);
+    border:1px solid var(--border);border-radius:12px;padding:0 clamp(9px,2.8vw,14px) 0 clamp(7px,2.2vw,11px);color:var(--text);cursor:pointer;transition:.18s;margin:0}
   .user-btn:hover{background:rgba(255,255,255,.05)}
-  .user-btn>svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  .user-btn .user-cur{font-family:var(--display);font-weight:600;font-size:14.5px}
-  .user-btn .chev{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+  .user-btn>svg{width:clamp(16px,4.5vw,20px);height:clamp(16px,4.5vw,20px);stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .user-btn .user-cur{font-family:var(--display);font-weight:600;font-size:clamp(12.5px,3.6vw,14.5px)}
+  .user-btn .chev{width:clamp(11px,3vw,14px);height:clamp(11px,3vw,14px);stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
   .usermenu.open .user-btn .chev{transform:rotate(180deg)}
   .user-pop{position:absolute;top:calc(100% + 8px);right:0;min-width:150px;background:var(--panel);
     border:1px solid var(--border);border-radius:12px;padding:5px;box-shadow:0 12px 32px rgba(0,0,0,.4);z-index:70}
