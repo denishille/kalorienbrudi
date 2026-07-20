@@ -625,7 +625,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{background:var(--bg);color:var(--text);font-family:var(--body)}
   body{
-    padding:26px;padding-top:94px;
+    padding:26px;padding-top:124px;
     background-image:radial-gradient(circle at 12% 0%, rgba(77,166,255,.06), transparent 42%),
                      radial-gradient(circle at 100% 100%, rgba(255,111,181,.05), transparent 40%);
     min-height:100vh;transition:background-color .35s,color .35s;
@@ -639,7 +639,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .topnav{position:fixed;top:0;left:0;right:0;z-index:60;
     background:rgba(33,29,23,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border-bottom:1px solid var(--border);box-shadow:0 6px 24px rgba(0,0,0,.25)}
-  .tn-inner{--nvh:44px;max-width:1080px;margin:0 auto;padding:16px 26px;display:flex;align-items:center;
+  .tn-inner{--nvh:50px;max-width:1132px;margin:0 auto;padding:18px 26px;display:flex;align-items:center;
     justify-content:space-between;gap:14px;flex-wrap:nowrap}
   .topnav .pagenav{margin-bottom:0}
   .pagenav button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;
@@ -647,10 +647,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .topnav .toggle{padding:4px;border-radius:999px;background:var(--panel2)}
   .topnav .toggle button{padding:7px 14px;font-size:13.5px}
   @media(max-width:600px){
-    body{padding-top:82px}
-    .tn-inner{--nvh:38px;padding:14px 26px;gap:8px}
+    body{padding-top:90px}
+    .tn-inner{--nvh:42px;padding:15px 26px;gap:8px}
     .pagenav{gap:3px;padding:3px}
-    .pagenav button{font-size:9px;letter-spacing:.02em;gap:5px;padding:0 9px}
+    .pagenav button{font-size:10px;letter-spacing:.02em;gap:5px;padding:0 11px}
     .pagenav button svg{width:12px;height:12px}
     .user-btn{padding:0 10px 0 8px;gap:5px}
     .user-btn>svg{width:16px;height:16px}
@@ -665,8 +665,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .brand h1 b{color:var(--accent);transition:color .4s}
 
   .pagenav{display:flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:4px;height:var(--nvh);box-sizing:border-box}
-  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:100%;padding:0 16px;
-    border-radius:9px;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;line-height:1;
+  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:100%;padding:0 20px;
+    border-radius:9px;font-family:var(--mono);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;line-height:1;
     color:var(--faint);background:none;border:none;cursor:pointer;transition:.18s}
   .pagenav button:hover{color:var(--text);background:rgba(255,255,255,.04)}
   .pagenav button.active{color:var(--darkink);background:var(--accent)}
@@ -684,10 +684,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   /* ---- User-Menü (Icon + Popover) ---- */
   .usermenu{position:relative;display:flex;flex:none}
   .user-btn{display:inline-flex;align-items:center;gap:8px;height:var(--nvh);box-sizing:border-box;background:var(--panel2);
-    border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:0 14px 0 11px;color:var(--text);cursor:pointer;transition:.18s;margin:0}
+    border:1px solid var(--border);border-radius:12px;padding:0 14px 0 11px;color:var(--text);cursor:pointer;transition:.18s;margin:0}
   .user-btn:hover{background:rgba(255,255,255,.05)}
-  .user-btn>svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  .user-btn .user-cur{font-family:var(--display);font-weight:600;font-size:13.5px}
+  .user-btn>svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .user-btn .user-cur{font-family:var(--display);font-weight:600;font-size:14.5px}
   .user-btn .chev{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
   .usermenu.open .user-btn .chev{transform:rotate(180deg)}
   .user-pop{position:absolute;top:calc(100% + 8px);right:0;min-width:150px;background:var(--panel);
@@ -1158,23 +1158,24 @@ function covGauge(cov,color){
     +'<text class="cg-num" x="50" y="50">'+Math.round(v)+'%</text></svg>';
 }
 const SUGGEST={
-  'Ballaststoffe (g)':['Haferflocken','Linsen','Himbeeren'],
-  'Calcium (mg)':['Joghurt','Gr\u00fcnkohl','Mandeln'],
-  'Eisen (mg)':['Linsen','K\u00fcrbiskerne','Rindfleisch'],
-  'Folat (\u00b5g)':['Spinat','Kichererbsen','Brokkoli'],
-  'Jod (\u00b5g)':['Seelachs','Jodsalz','Milchprodukte'],
-  'Kalium (mg)':['Banane','Kartoffeln','Avocado'],
-  'Magnesium (mg)':['K\u00fcrbiskerne','Vollkornreis','Spinat'],
-  'Omega-3 (g)':['Lachs','Waln\u00fcsse','Leinsamen'],
-  'Selen (\u00b5g)':['Paran\u00fcsse','Thunfisch','Eier'],
-  'Vitamin A (\u00b5g)':['S\u00fc\u00dfkartoffel','Karotten','Spinat'],
-  'Vitamin B12 (\u00b5g)':['Lachs','Eier','K\u00e4se'],
-  'Vitamin C (mg)':['Paprika','Brokkoli','Orangen'],
-  'Vitamin D (\u00b5g)':['Lachs','Eier','Pilze'],
-  'Vitamin E (mg)':['Mandeln','Sonnenblumenkerne','Oliven\u00f6l'],
-  'Vitamin K (\u00b5g)':['Gr\u00fcnkohl','Spinat','Rucola'],
-  'Zink (mg)':['K\u00fcrbiskerne','Rindfleisch','Haferflocken']
+  'Ballaststoffe (g)':['Haferflocken','Linsen','Himbeeren','Chiasamen','Vollkornbrot'],
+  'Calcium (mg)':['Joghurt','Gr\u00fcnkohl','Mandeln','K\u00e4se','Sesam'],
+  'Eisen (mg)':['Linsen','K\u00fcrbiskerne','Rindfleisch','Haferflocken','Spinat'],
+  'Folat (\u00b5g)':['Spinat','Kichererbsen','Brokkoli','Linsen','Avocado'],
+  'Jod (\u00b5g)':['Seelachs','Jodsalz','Milchprodukte','Eier','Nori-Algen'],
+  'Kalium (mg)':['Banane','Kartoffeln','Avocado','Spinat','Wei\u00dfe Bohnen'],
+  'Magnesium (mg)':['K\u00fcrbiskerne','Vollkornreis','Spinat','Mandeln','Bitterschokolade'],
+  'Omega-3 (g)':['Lachs','Waln\u00fcsse','Leinsamen','Chiasamen','Raps\u00f6l'],
+  'Selen (\u00b5g)':['Paran\u00fcsse','Thunfisch','Eier','Haferflocken','Champignons'],
+  'Vitamin A (\u00b5g)':['S\u00fc\u00dfkartoffel','Karotten','Spinat','K\u00fcrbis','Paprika'],
+  'Vitamin B12 (\u00b5g)':['Lachs','Eier','K\u00e4se','Joghurt','Milch'],
+  'Vitamin C (mg)':['Paprika','Brokkoli','Orangen','Kiwi','Erdbeeren'],
+  'Vitamin D (\u00b5g)':['Lachs','Eier','Pilze','Hering','Margarine (angereichert)'],
+  'Vitamin E (mg)':['Mandeln','Sonnenblumenkerne','Oliven\u00f6l','Haseln\u00fcsse','Avocado'],
+  'Vitamin K (\u00b5g)':['Gr\u00fcnkohl','Spinat','Rucola','Brokkoli','Rosenkohl'],
+  'Zink (mg)':['K\u00fcrbiskerne','Rindfleisch','Haferflocken','Linsen','K\u00e4se']
 };
+const NICHT_VEGGIE=new Set(['Rindfleisch','Lachs','Thunfisch','Seelachs','Hering','H\u00e4hnchen']);
 function topFoods(windowDays){
   /* pro Kategorie: Haeufigkeit je Lebensmittel zaehlen, Top 4 positiv + Flop 4 negativ */
   const out={};
@@ -1185,7 +1186,7 @@ function topFoods(windowDays){
       f[0].forEach(n=>pos[n]=(pos[n]||0)+1);
       f[1].forEach(n=>neg[n]=(neg[n]||0)+1);
     });
-    const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,4);
+    const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,5);
     out[c.key]={pos:top(pos),neg:top(neg)};
   });
   return out;
@@ -1197,22 +1198,22 @@ function topChol(windowDays){
     const c=day.chol||{};
     Object.keys(c).forEach(n=>m[n]=(m[n]||0)+c[n]);
   });
-  return Object.entries(m).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,4);
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,5);
 }
 function tipHtml(t){
   const li=a=>a.length
     ?'<ul>'+a.map(([n,k])=>'<li>'+n+(k>1?' <small>\\u00d7'+k+'</small>':'')+'</li>').join('')+'</ul>'
     :'<div class="none">keine</div>';
   return '<div class="ck-tip">'
-       +'<div class="col"><div class="tt pos">\\u25b2 Top 4</div>'+li(t.pos)+'</div>'
-       +'<div class="col"><div class="tt neg">\\u25bc Flop 4</div>'+li(t.neg)+'</div>'
+       +'<div class="col"><div class="tt pos">\\u25b2 Top 5</div>'+li(t.pos)+'</div>'
+       +'<div class="col"><div class="tt neg">\\u25bc Flop 5</div>'+li(t.neg)+'</div>'
        +'</div>';
 }
 function tipCholHtml(items){
   const li=items.length
     ?'<ul>'+items.map(([n,mg])=>'<li>'+n+' <small>'+Math.round(mg).toLocaleString('de')+' mg</small></li>').join('')+'</ul>'
     :'<div class="none">keine</div>';
-  return '<div class="ck-tip"><div class="col"><div class="tt neg">\\u25bc Top 4 Quellen</div>'+li+'</div></div>';
+  return '<div class="ck-tip"><div class="col"><div class="tt neg">\\u25bc Top 5 Quellen</div>'+li+'</div></div>';
 }
 function checkCard(name, cls, status, detail, help, i, tip, chip){
   return `<div class="check ${cls}${tip?' has-tip':''} stagger" style="animation-delay:${(0.02+0.03*i).toFixed(2)}s"${tip?' tabindex="0"':''}>
@@ -1321,7 +1322,10 @@ function renderNutri(){
   let barsHtml=micros.map((m,i)=>{
     const full=m.pct>=99.5?' full':'';
     const src=(u.nutTop&&u.nutTop[m.key])||[];
-    const sug=SUGGEST[m.key]||[];
+    const logNames=new Set(src.map(x=>x[0].toLowerCase()));
+    let sug=(SUGGEST[m.key]||[]).filter(x=>!logNames.has(x.toLowerCase()));
+    if(curUser==='Leni') sug=sug.filter(x=>!NICHT_VEGGIE.has(x));
+    sug=sug.slice(0,3);
     const srcHtml=(src.length
       ? 'Gute Quellen aus deinem Log: '+src.map(x=>'<b>'+x[0]+'</b> (\\u00d8 '+fmtN(x[1])+' '+m.unit+')').join(' \\u00b7 ')
       : 'Noch keine Quelle mit '+m.name+' im Log.')
