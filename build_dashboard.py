@@ -625,7 +625,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{background:var(--bg);color:var(--text);font-family:var(--body)}
   body{
-    padding:26px;padding-top:118px;
+    padding:26px;padding-top:100px;
     background-image:radial-gradient(circle at 12% 0%, rgba(77,166,255,.06), transparent 42%),
                      radial-gradient(circle at 100% 100%, rgba(255,111,181,.05), transparent 40%);
     min-height:100vh;transition:background-color .35s,color .35s;
@@ -639,7 +639,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .topnav{position:fixed;top:0;left:0;right:0;z-index:60;
     background:rgba(33,29,23,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border-bottom:1px solid var(--border);box-shadow:0 6px 24px rgba(0,0,0,.25)}
-  .tn-inner{max-width:1080px;margin:0 auto;padding:10px 26px;display:flex;align-items:center;
+  .tn-inner{max-width:1080px;margin:0 auto;padding:8px 26px;display:flex;align-items:center;
     justify-content:space-between;gap:14px;flex-wrap:nowrap}
   .topnav .pagenav{margin-bottom:0}
   .pagenav button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;
@@ -647,13 +647,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .topnav .toggle{padding:4px;border-radius:999px;background:var(--panel2)}
   .topnav .toggle button{padding:7px 14px;font-size:13.5px}
   @media(max-width:600px){
-    body{padding-top:96px}
-    .tn-inner{padding:9px 14px;gap:10px}
-    .pagenav{gap:4px;padding:4px}
-    .pagenav button{font-size:10px;letter-spacing:.04em;gap:6px;height:34px;padding:0 14px}
-    .user-btn{height:44px;padding:0 13px 0 10px}
-    .pagenav button svg{width:13px;height:13px}
-    .topnav .toggle button{padding:6px 10px;font-size:12.5px}
+    body{padding-top:72px}
+    .tn-inner{padding:7px 26px;gap:8px}
+    .pagenav{gap:3px;padding:3px}
+    .pagenav button{font-size:9px;letter-spacing:.02em;gap:5px;height:28px;padding:0 9px}
+    .pagenav button svg{width:12px;height:12px}
+    .user-btn{height:36px;padding:0 10px 0 8px;gap:5px;flex:none}
+    .user-btn>svg{width:16px;height:16px}
+    .user-btn .user-cur{font-size:12.5px}
+    .user-btn .chev{width:12px;height:12px}
   }
 
   header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:22px}
@@ -662,9 +664,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .brand h1{font-family:var(--display);font-weight:800;font-size:32px;letter-spacing:-.02em;line-height:1}
   .brand h1 b{color:var(--accent);transition:color .4s}
 
-  .pagenav{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:5px}
-  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:38px;padding:0 22px;
-    border-radius:10px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;line-height:1;
+  .pagenav{display:flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:4px}
+  .pagenav button{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 16px;
+    border-radius:9px;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;line-height:1;
     color:var(--faint);background:none;border:none;cursor:pointer;transition:.18s}
   .pagenav button:hover{color:var(--text);background:rgba(255,255,255,.04)}
   .pagenav button.active{color:var(--darkink);background:var(--accent)}
@@ -681,11 +683,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .toggle button.active[data-u="Leni"]{background:#FF6FB5}
   /* ---- User-Menü (Icon + Popover) ---- */
   .usermenu{position:relative}
-  .user-btn{display:inline-flex;align-items:center;gap:9px;height:50px;box-sizing:border-box;background:var(--panel2);
-    border:1px solid var(--border);border-radius:999px;padding:0 18px 0 14px;color:var(--text);cursor:pointer;transition:.18s}
+  .user-btn{display:inline-flex;align-items:center;gap:8px;height:44px;box-sizing:border-box;background:var(--panel2);
+    border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:0 15px 0 12px;color:var(--text);cursor:pointer;transition:.18s}
   .user-btn:hover{background:rgba(255,255,255,.05)}
-  .user-btn>svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  .user-btn .user-cur{font-family:var(--display);font-weight:600;font-size:14px}
+  .user-btn>svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .user-btn .user-cur{font-family:var(--display);font-weight:600;font-size:13.5px}
   .user-btn .chev{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
   .usermenu.open .user-btn .chev{transform:rotate(180deg)}
   .user-pop{position:absolute;top:calc(100% + 8px);right:0;min-width:150px;background:var(--panel);
@@ -759,8 +761,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .dvg .drow{display:grid;grid-template-columns:84px 1fr;align-items:center;gap:10px}
   .dvg .dday{font-family:var(--body);font-size:12.5px;color:var(--muted);text-align:right;white-space:nowrap}
   .dvg .track{position:relative;height:30px;background:var(--panel2);border-radius:7px;overflow:hidden}
-  .dvg .zero{position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--text);opacity:.5;z-index:2}
-  .dvg .grid{position:absolute;top:0;bottom:0;width:1px;background:var(--border);opacity:.7}
+  .dvg .zero{position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(255,255,255,.12);z-index:2}
   .dvg .fill{position:absolute;top:3px;bottom:3px;border-radius:5px;transition:.5s cubic-bezier(.2,.8,.2,1)}
   .dvg .fill.green{background:linear-gradient(90deg,rgba(91,209,106,.35),rgba(91,209,106,.85))}
   .dvg .fill.amber{background:linear-gradient(90deg,rgba(240,192,74,.85),rgba(240,192,74,.4))}
@@ -1070,7 +1071,7 @@ function renderKcal(){
           const lbl=diff<=0?`right:calc(50% + ${w}% + 8px)`:`left:calc(50% + ${w}% + 8px)`;
           const flag=x.flag?' <span class="dflag" title="Tages-Total weicht von der Einzelposten-Summe (Analyse) ab">\\u26a0</span>':'';
           return `<div class="drow"><div class="dday">${fmtDay(x.d)}</div>
-            <div class="track"><div class="grid" style="left:25%"></div><div class="grid" style="left:75%"></div><div class="zero"></div><div class="fill ${cls}" style="${style}"></div><span class="dv ${cls}" style="${lbl}">${sign}${diff}${flag}</span></div></div>`;
+            <div class="track"><div class="zero"></div><div class="fill ${cls}" style="${style}"></div><span class="dv ${cls}" style="${lbl}">${sign}${diff}${flag}</span></div></div>`;
         }).join('')}
       </div>
     </div>
