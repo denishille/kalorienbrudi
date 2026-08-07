@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-06",
+  "last_run": "2026-08-07",
   "history": [
     {
       "date": "2026-07-13",
@@ -154,6 +154,11 @@
     {
       "date": "2026-08-06",
       "data_critical": 16,
+      "dashboard_critical": 0
+    },
+    {
+      "date": "2026-08-07",
+      "data_critical": 70,
       "dashboard_critical": 0
     }
   ]
