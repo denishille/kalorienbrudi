@@ -381,7 +381,7 @@
 <body>
 <header class="topbar">
   <div class="topbar-in">
-    <span class="mark">kalorien<i>brudi</i></span>
+    <span class="mark">kalorien<i id="markWord">brudi</i></span>
     <nav class="tabs" id="tabs" role="tablist">
       <button role="tab" data-pg="kcal" aria-selected="true">Kalorien</button>
       <button role="tab" data-pg="nutri" aria-selected="false">Nährstoffe</button>
@@ -940,7 +940,10 @@ function render(){
   el('whoBtn').title = 'Zu ' + other + ' wechseln';
   el('whoBtn').setAttribute('aria-label', 'Angezeigte Person: ' + curUser + ' – zu ' + other + ' wechseln');
   const kicker = (DATA_KCAL[curUser] || {}).kicker || 'brudi';
+  el('markWord').textContent = kicker;
   el('eyebrow').textContent = (nutri ? 'Nährstoff' : 'Kalorien') + kicker;
+  /* Auch der Browser-Tab; "Brudi" waere fuer Leni sonst genauso schief. */
+  document.title = (nutri ? 'Nährstoff' : 'Kalorien') + kicker;
   el('title').textContent = curUser;
   el('whoCur').textContent = curUser;
   if(nutri) renderNutri(); else renderKcal();
