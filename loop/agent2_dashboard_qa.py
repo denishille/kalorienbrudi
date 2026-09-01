@@ -15,10 +15,11 @@ from lib import (query_all, prop, write_report, claude_vision,
 SHOTS = REPORTS / "shots"
 
 # Charakteristische App-Selektoren: taucht mind. einer auf, ist die echte App geladen
-APP_SELECTORS = ["#pt", "#mt", ".user-toggle", "svg", "canvas", "[role=tab]"]
+APP_SELECTORS = ["#segPeriod", "#segMetric", "#whoBtn", "svg", "canvas", "[role=tab]"]
 
 DESIGN_SYSTEM = """Du bist Senior Product-Designer und UX-Reviewer. Du bewertest
-Screenshots eines Kalorien-Tracking-Dashboards (dunkles Theme, zwei Nutzer).
+Screenshots eines Kalorien-Tracking-Dashboards (helles Theme mit Dark-Mode-
+Unterstuetzung, zwei Nutzer).
 Bewerte streng auf: visuelle Hierarchie, Typografie, Abstände/Ausrichtung,
 Farb- & Kontrastqualität, Konsistenz, Whitespace, Moderne/Cleanliness,
 Lesbarkeit von Charts, mobile Tauglichkeit. Ziel ist eine TOP aussehende,
@@ -53,7 +54,9 @@ def load_dashboard(page, tries=5, wait=15000):
 def functional(page, body):
     issues, checks = [], []
     clicked = 0
-    for sel in ["#pt button", "#mt button", ".user-toggle button", "button", "[role=tab]"]:
+    for sel in ["#segPeriod button", "#segMetric button", "#segTime button",
+                "#segSort button", "#whoPop button", ".check", ".bar-row",
+                "button", "[role=tab]"]:
         for el in page.query_selector_all(sel):
             try:
                 el.click(timeout=2000); clicked += 1; page.wait_for_timeout(150)
