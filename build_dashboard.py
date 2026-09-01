@@ -33,16 +33,16 @@ TOKEN = os.environ.get("NOTION_TOKEN")
 
 # --- Kalorien: pro Person fixe Einstellungen ---
 PERSON_CONFIG = {
-    "Denis": {"accent": "#275AA2", "deficitTarget": 1000,
+    "Denis": {"accent": "#3669B4", "kicker": "brudi", "deficitTarget": 1000,
               "greenBuf": 95, "zielWeight": 80, "goalIntake": 1900},
-    "Leni":  {"accent": "#993669", "deficitTarget": 500,
+    "Leni":  {"accent": "#AB4878", "kicker": "schwester", "deficitTarget": 500,
               "greenBuf": 75, "zielWeight": 60, "goalIntake": 1500},
 }
 
 # --- Naehrstoffe: pro Person Geschlecht + Akzent (eigene Farben fuer die Seite) ---
 NUTRI_CONFIG = {
-    "Denis": {"sex": "m", "accent": "#275AA2"},
-    "Leni":  {"sex": "w", "accent": "#993669"},
+    "Denis": {"sex": "m", "accent": "#3669B4"},
+    "Leni":  {"sex": "w", "accent": "#AB4878"},
 }
 
 # Tages-Referenzwerte (DGE/D-A-CH, Erwachsene) je Geschlecht. Hier anpassbar.
@@ -437,7 +437,7 @@ def build_kcal_data(pages, analyse_kcal=None):
         start_weight = weights[0] if weights else weight
         ziel = next((e["zielWeight"] for e in reversed(entries) if e["zielWeight"]), cfg["zielWeight"])
         data[person] = {
-            "accent": cfg["accent"],
+            "accent": cfg["accent"], "kicker": cfg["kicker"],
             "goalIntake": goal, "deficitTarget": cfg["deficitTarget"],
             "weight": weight, "startWeight": start_weight,
             "zielWeight": ziel, "greenBuf": cfg["greenBuf"],
@@ -627,7 +627,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     --pos:#2E7D57;  --pos-bg:rgba(46,125,87,.10);
     --warn:#A8761E; --warn-bg:rgba(168,118,30,.12);
     --neg:#B84A3E;  --neg-bg:rgba(184,74,62,.10);
-    --accent-raw:#275AA2;
+    --accent-raw:#3669B4;
     --accent:var(--accent-raw);
     --accent-ink:#FFFFFF;
     --accent-bg:color-mix(in srgb, var(--accent-raw) 13%, var(--paper));
@@ -1536,7 +1536,8 @@ function render(){
   const other = nextUser();
   el('whoBtn').title = 'Zu ' + other + ' wechseln';
   el('whoBtn').setAttribute('aria-label', 'Angezeigte Person: ' + curUser + ' – zu ' + other + ' wechseln');
-  el('eyebrow').textContent = nutri ? 'Nährstoffbrudi' : 'Kalorienbrudi';
+  const kicker = (DATA_KCAL[curUser] || {}).kicker || 'brudi';
+  el('eyebrow').textContent = (nutri ? 'Nährstoff' : 'Kalorien') + kicker;
   el('title').textContent = curUser;
   el('whoCur').textContent = curUser;
   if(nutri) renderNutri(); else renderKcal();
