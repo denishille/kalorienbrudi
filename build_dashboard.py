@@ -436,18 +436,11 @@ def build_kcal_data(pages, analyse_kcal=None):
         weight = weights[-1] if weights else None
         start_weight = weights[0] if weights else weight
         ziel = next((e["zielWeight"] for e in reversed(entries) if e["zielWeight"]), cfg["zielWeight"])
-        weighted = [(e["d"], e["weight"]) for e in entries if e["weight"] is not None]
-        if weighted:
-            anchor_weight = min(w for _, w in weighted)
-            anchor_date = min(d for d, w in weighted if w == anchor_weight)
-        else:
-            anchor_weight, anchor_date = None, None
         data[person] = {
             "accent": cfg["accent"], "accent2": cfg["accent2"],
             "goalIntake": goal, "deficitTarget": cfg["deficitTarget"],
             "weight": weight, "startWeight": start_weight,
             "zielWeight": ziel, "greenBuf": cfg["greenBuf"],
-            "anchorWeight": anchor_weight, "anchorDate": anchor_date,
             "days": days,
             "quality": {
                 "trackedDays": len(days),
@@ -643,8 +636,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
     --nav-h:60px;
   }
-  @media (prefers-color-scheme:dark){
-    :root{
+  :root.dark{
       color-scheme:dark;
       --paper:#121210;
       --surface:#1A1A17;
@@ -662,7 +654,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       --accent-ink:#12120F;
       --accent-bg:color-mix(in srgb, var(--accent-raw) 22%, transparent);
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.28);
-    }
   }
 
   *{margin:0;padding:0;box-sizing:border-box}
@@ -697,6 +688,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     color:var(--ink-2);transition:background .15s,color .15s}
   .tabs button:hover{color:var(--ink);background:var(--surface-3)}
   .tabs button[aria-selected="true"]{color:var(--accent);background:var(--accent-bg);font-weight:600}
+  .icon-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+    border-radius:8px;color:var(--ink-2);flex:none;transition:background .15s,color .15s}
+  .icon-btn:hover{background:var(--surface-3);color:var(--ink)}
+  .icon-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;
+    stroke-linecap:round;stroke-linejoin:round}
+  /* Gezeigt wird das Ziel-Theme, nicht das aktuelle. */
+  .icon-btn .i-sun{display:none}
+  :root.dark .icon-btn .i-sun{display:block}
+  :root.dark .icon-btn .i-moon{display:none}
   .who{position:relative;flex:none}
   .who-btn{display:flex;align-items:center;gap:7px;padding:6px 10px 6px 8px;border-radius:8px;
     font-size:13.5px;font-weight:500;transition:background .15s}
@@ -958,6 +958,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .rise{animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
   @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 </style>
+<script>
+/* Laeuft absichtlich vor dem Body: sonst blitzt beim Laden das helle Theme auf. */
+(function(){
+  var dark;
+  try{
+    var stored = localStorage.getItem('brudi-theme');
+    dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme:dark)').matches;
+  }catch(e){
+    dark = matchMedia('(prefers-color-scheme:dark)').matches;
+  }
+  document.documentElement.classList.toggle('dark', dark);
+})();
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -967,6 +980,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <button role="tab" data-pg="kcal" aria-selected="true">Kalorien</button>
       <button role="tab" data-pg="nutri" aria-selected="false">Nährstoffe</button>
     </nav>
+    <button class="icon-btn" id="themeBtn" type="button" aria-pressed="false">
+      <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2M12 19.4v2M4.6 12h-2M21.4 12h-2M6.3 6.3L4.9 4.9M19.1 19.1l-1.4-1.4M17.7 6.3l1.4-1.4M4.9 19.1l1.4-1.4"/></svg>
+    </button>
     <div class="who" id="who" data-open="false">
       <button class="who-btn" id="whoBtn" aria-haspopup="true" aria-expanded="false">
         <span class="dot"></span><span id="whoCur">Denis</span>
@@ -1094,16 +1111,19 @@ function renderKcal(){
   u.days.forEach(x => counts[classify(u, x.kcal)]++);
   const pct = n => total ? Math.round(n/total*100) : 0;
 
-  /* Fortschritt: gesparte kcal aus Gewichtsverlust + laufendem Defizit */
-  const anchorW = u.anchorWeight != null ? u.anchorWeight : u.weight;
-  const sw = u.startWeight != null ? u.startWeight : anchorW;
-  const savedByWeight = (sw != null && anchorW != null) ? (sw - anchorW)*7000 : 0;
-  const savedSince = u.days.reduce((s,x) =>
-    s + ((u.anchorDate == null || x.d >= u.anchorDate) ? (maintenance(u) - x.kcal) : 0), 0);
-  const saved = savedByWeight + savedSince;
-  const needed = (sw != null && u.zielWeight != null) ? (sw - u.zielWeight)*7000 : 0;
-  const prog = needed > 0 ? Math.max(0, Math.min(100, saved/needed*100)) : 0;
-  const daysLeft = Math.abs(Math.round(Math.max(0, needed - saved) / u.deficitTarget));
+  /* Fortschritt = zurueckgelegter Anteil der Strecke Startgewicht -> Zielgewicht.
+     Bewusst in Kilo gerechnet, damit die Zahl zur Gewichts-Schiene darunter passt. */
+  const sw = u.startWeight, cw = u.weight, gw = u.zielWeight;
+  const canProg = sw != null && cw != null && gw != null && sw > gw;
+  const doneKg = canProg ? Math.min(sw - cw, sw - gw) : 0;
+  const totalKg = canProg ? sw - gw : 0;
+  const leftKg = canProg ? Math.max(0, cw - gw) : 0;
+  const prog = canProg ? Math.max(0, Math.min(100, doneKg/totalKg*100)) : 0;
+  /* Restdauer aus dem geplanten Defizit (Faustregel 7.000 kcal je kg). */
+  const daysLeft = canProg ? Math.round(leftKg*7000/u.deficitTarget) : 0;
+  /* Zum Vergleich: was das Essens-Log im Schnitt an Defizit hergibt. */
+  const avgKcal = u.days.reduce((s,x) => s + x.kcal, 0)/total;
+  const avgDeficit = Math.round(maintenance(u) - avgKcal);
 
   const share = total ? counts.pos/total : 0;
   const cls = share >= 0.5 ? 'pos' : (share >= 0.25 ? 'warn' : 'neg');
@@ -1128,17 +1148,26 @@ function renderKcal(){
     + '<div class="fact"><dt>Kalorienziel</dt><dd class="num">'+de(u.goalIntake)+' <small>kcal</small>'+est(q.goalFromData)+'</dd></div>'
     + '<div class="fact"><dt>Geplantes Defizit</dt><dd class="num">'+de(u.deficitTarget)+' <small>kcal/Tag</small></dd></div>'
     + '<div class="fact"><dt>Erhaltungsbedarf</dt><dd class="num">'+de(maintenance(u))+' <small>kcal</small></dd></div>'
+    + '<div class="fact"><dt>Ø Defizit laut Log</dt><dd class="num">'+de(avgDeficit)+' <small>kcal/Tag</small></dd></div>'
     + '<div class="fact"><dt>Makro-Ziel</dt><dd class="num">'+t.p+' P · '+t.f+' F · '+t.c+' C <small>g</small></dd></div>'
     + '</dl>';
+
+  const heroCap = !canProg
+    ? 'Für die Quote fehlen Gewichtseinträge (Start, aktuell und Ziel).'
+    : (leftKg <= 0
+        ? '<b>Zielgewicht erreicht</b> · ' + fmtNum(totalKg) + ' kg geschafft'
+        : '<b class="num">' + fmtNum(Math.round(doneKg*10)/10) + '</b> von <span class="num">'
+          + fmtNum(totalKg) + '</span> kg geschafft · noch <b class="num">'
+          + fmtNum(Math.round(leftKg*10)/10) + ' kg</b>'
+          + '<br>Bei ' + de(u.deficitTarget) + ' kcal Defizit pro Tag rechnerisch noch rund <b class="num">'
+          + de(daysLeft) + ' Tage</b>.');
 
   const hero = '<section class="sheet hero rise">'
     + '<div class="hero-main">'
     +   '<p class="eyebrow">Fortschritt zum Zielgewicht</p>'
-    +   '<div class="hero-num"><b class="num">'+Math.round(prog)+'</b><span>%</span></div>'
+    +   '<div class="hero-num"><b class="num">'+(canProg ? Math.round(prog) : '–')+'</b><span>%</span></div>'
     +   '<div class="meter"><i style="width:'+prog.toFixed(1)+'%"></i></div>'
-    +   '<p class="hero-cap"><b class="num">'+de(Math.round(saved))+'</b> von <span class="num">'+de(Math.round(needed))+'</span> kcal gespart'
-    +   (needed > 0 ? ' · noch <b class="num">'+de(daysLeft)+' Tage</b> bei '+de(u.deficitTarget)+' kcal Defizit' : '')
-    +   '</p>'
+    +   '<p class="hero-cap">'+heroCap+'</p>'
     +   rail
     + '</div>'
     + '<div class="hero-side">'
@@ -1520,6 +1549,30 @@ function render(){
 
 el('tabs').querySelectorAll('button').forEach(b =>
   b.onclick = () => { curPage = b.dataset.pg; openCheck = null; render(); });
+
+/* --- Theme-Umschalter --- */
+const themeBtn = el('themeBtn');
+function syncTheme(){
+  const dark = document.documentElement.classList.contains('dark');
+  themeBtn.setAttribute('aria-pressed', String(dark));
+  themeBtn.setAttribute('aria-label', dark ? 'Zu hellem Design wechseln' : 'Zu dunklem Design wechseln');
+  themeBtn.title = dark ? 'Helles Design' : 'Dunkles Design';
+}
+themeBtn.onclick = () => {
+  const dark = !document.documentElement.classList.contains('dark');
+  document.documentElement.classList.toggle('dark', dark);
+  try{ localStorage.setItem('brudi-theme', dark ? 'dark' : 'light'); }catch(e){}
+  syncTheme();
+};
+syncTheme();
+/* Der Systemwechsel greift nur, solange nichts manuell gewaehlt wurde. */
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change', e => {
+  let stored = null;
+  try{ stored = localStorage.getItem('brudi-theme'); }catch(_){}
+  if(stored) return;
+  document.documentElement.classList.toggle('dark', e.matches);
+  syncTheme();
+});
 
 const who = el('who'), whoPop = el('whoPop');
 function closeWho(){ who.dataset.open = 'false'; whoPop.hidden = true; el('whoBtn').setAttribute('aria-expanded','false'); }
