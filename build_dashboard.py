@@ -631,6 +631,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     --accent:var(--accent-raw);
     --accent-ink:#FFFFFF;
     --accent-bg:color-mix(in srgb, var(--accent-raw) 10%, transparent);
+    /* Grosse Flaechen wirken bei gleichem Farbwert schwerer und dunkler als
+       duenne Schrift: Diagrammbalken und der Akzent der Kopfleiste hatten exakt
+       denselben Wert, sahen aber verschieden aus. Aufgehellte Variante, damit
+       die Balken wie der Akzent oben WIRKEN. Abgeleitet, nicht fest verdrahtet -
+       der Akzent wechselt je Person (Denis blau, Leni pink). */
+    --accent-fill:color-mix(in srgb, var(--accent-raw) 85%, #FFFFFF);
     --shadow:0 1px 2px rgba(27,26,23,.04), 0 6px 18px rgba(27,26,23,.045);
     --r:12px;
     --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -653,6 +659,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       --accent:color-mix(in srgb, var(--accent-raw) 55%, #FFFFFF);
       --accent-ink:#12120F;
       --accent-bg:color-mix(in srgb, var(--accent-raw) 22%, transparent);
+      /* Auf dunklem Grund ist --accent bereits aufgehellt - das reicht hier. */
+      --accent-fill:var(--accent);
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.28);
   }
 
@@ -828,7 +836,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .chart{margin-top:6px}
   .chart svg{display:block;width:100%;height:auto;overflow:visible}
   .c-grid{stroke:var(--line);stroke-width:1}
-  .c-bar{fill:var(--accent)}
+  .c-bar{fill:var(--accent-fill)}
   .c-val{fill:var(--ink);font-size:12.5px;font-weight:600;text-anchor:middle;
     font-variant-numeric:tabular-nums}
   .c-goal{stroke:var(--ink-3);stroke-width:1.5;stroke-dasharray:4 4}
