@@ -1,0 +1,60 @@
+# Baut das Dashboard aus Notion und veroeffentlicht es auf Cloudflare Pages.
+#
+# Warum der Build hier bleibt und nicht in Cloudflare laeuft: die Seite muss
+# sich zweimal taeglich aus Notion aktualisieren, auch ohne Code-Aenderung.
+# Die Git-Anbindung von Cloudflare Pages kennt keine geplanten Builds - dort
+# wuerde nur noch bei Pushes gebaut und die Zahlen wuerden still veralten.
+name: Build und Deploy
+
+on:
+  # Bei jeder Code-Aenderung: Push auf irgendeinen Branch baut sofort.
+  # Veroeffentlicht wird nur von "main" (siehe letzter Schritt).
+  push:
+    branches: ["**"]
+  # Regelmaessig automatisch (13:00 und 19:00 UTC). Cron ist immer UTC.
+  schedule:
+    - cron: "0 13 * * *"
+    - cron: "0 19 * * *"
+  # Manuell ueber den "Run workflow"-Knopf im Actions-Tab
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  # Ueberholte Branch-Builds abbrechen, ein laufendes Deploy von main nie.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dashboard aus Notion bauen
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: python build_dashboard.py
+
+      # Nur die fertige Seite geht live. Vorher wurde das gesamte Repository
+      # hochgeladen, wodurch build_dashboard.py oeffentlich abrufbar war.
+      - name: Veroeffentlichungsordner packen
+        run: |
+          mkdir -p dist
+          cp index.html dist/
+          ls -la dist
+
+      - name: Auf Cloudflare Pages veroeffentlichen
+        if: github.ref == 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=kalorienbrudi --branch=main
