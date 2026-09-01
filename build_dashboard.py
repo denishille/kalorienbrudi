@@ -634,7 +634,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     --shadow:0 1px 2px rgba(27,26,23,.04), 0 6px 18px rgba(27,26,23,.045);
     --r:12px;
     --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
-    --nav-h:60px;
+    --nav-h:72px;
   }
   :root.dark{
       color-scheme:dark;
@@ -681,30 +681,30 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     border-bottom:1px solid var(--line)}
   .topbar-in{max-width:1040px;margin:0 auto;height:100%;padding:0 20px;
     display:flex;align-items:center;gap:16px}
-  .mark{font-weight:700;font-size:15px;letter-spacing:-.03em;flex:none}
+  .mark{font-weight:700;font-size:16.5px;letter-spacing:-.03em;flex:none}
   .mark i{font-style:normal;color:var(--accent)}
   .tabs{display:flex;gap:2px;margin-left:auto}
-  .tabs button{padding:7px 13px;border-radius:8px;font-size:13.5px;font-weight:500;
+  .tabs button{padding:9px 15px;border-radius:9px;font-size:14.5px;font-weight:500;
     color:var(--ink-2);transition:background .15s,color .15s}
   .tabs button:hover{color:var(--ink);background:var(--surface-3)}
   .tabs button[aria-selected="true"]{color:var(--accent);background:var(--accent-bg);font-weight:600}
-  .icon-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;
-    border-radius:8px;color:var(--ink-2);flex:none;transition:background .15s,color .15s}
+  .icon-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;
+    border-radius:9px;color:var(--ink-2);flex:none;transition:background .15s,color .15s}
   .icon-btn:hover{background:var(--surface-3);color:var(--ink)}
-  .icon-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;
+  .icon-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;
     stroke-linecap:round;stroke-linejoin:round}
   /* Gezeigt wird das Ziel-Theme, nicht das aktuelle. */
   .icon-btn .i-sun{display:none}
   :root.dark .icon-btn .i-sun{display:block}
   :root.dark .icon-btn .i-moon{display:none}
   .who{position:relative;flex:none}
-  .who-btn{display:flex;align-items:center;gap:7px;padding:6px 10px 6px 8px;border-radius:8px;
-    font-size:13.5px;font-weight:500;transition:background .15s}
+  .who-btn{display:flex;align-items:center;gap:8px;padding:8px 12px 8px 10px;border-radius:9px;
+    font-size:14.5px;font-weight:500;transition:background .15s}
   .who-btn:hover{background:var(--surface-3)}
-  .who-btn .chev{width:12px;height:12px;stroke:var(--ink-3);fill:none;stroke-width:2.2;
+  .who-btn .chev{width:13px;height:13px;stroke:var(--ink-3);fill:none;stroke-width:2.2;
     stroke-linecap:round;stroke-linejoin:round;transition:transform .18s}
   .who[data-open="true"] .who-btn .chev{transform:rotate(180deg)}
-  .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--accent)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--accent)}
   .who-pop{position:absolute;top:calc(100% + 6px);right:0;min-width:140px;padding:4px;
     background:var(--surface);border:1px solid var(--line);border-radius:10px;
     box-shadow:var(--shadow);z-index:60}
@@ -713,13 +713,14 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .who-pop button:hover{background:var(--surface-2);color:var(--ink)}
   .who-pop button[aria-current="true"]{color:var(--ink);background:var(--surface-2)}
   @media(max-width:520px){
+    :root{--nav-h:64px}
     .mark{display:none}
     /* Ohne Wortmarke stehen die Tabs links; der freie Platz gehoert dann vor
        die rechte Gruppe, damit Nutzer-Menue und Theme-Knopf am Rand kleben. */
     .tabs{margin-left:0}
     .who{margin-left:auto}
     .topbar-in{gap:8px;padding:0 14px}
-    .tabs button{padding:7px 10px;font-size:13px}
+    .tabs button{padding:8px 11px;font-size:13.5px}
   }
 
   /* ---------- Seitenkopf ---------- */
