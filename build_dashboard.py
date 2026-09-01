@@ -714,7 +714,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .who-pop button[aria-current="true"]{color:var(--ink);background:var(--surface-2)}
   @media(max-width:520px){
     .mark{display:none}
+    /* Ohne Wortmarke stehen die Tabs links; der freie Platz gehoert dann vor
+       die rechte Gruppe, damit Nutzer-Menue und Theme-Knopf am Rand kleben. */
     .tabs{margin-left:0}
+    .who{margin-left:auto}
     .topbar-in{gap:8px;padding:0 14px}
     .tabs button{padding:7px 10px;font-size:13px}
   }
@@ -980,10 +983,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <button role="tab" data-pg="kcal" aria-selected="true">Kalorien</button>
       <button role="tab" data-pg="nutri" aria-selected="false">Nährstoffe</button>
     </nav>
-    <button class="icon-btn" id="themeBtn" type="button" aria-pressed="false">
-      <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>
-      <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2M12 19.4v2M4.6 12h-2M21.4 12h-2M6.3 6.3L4.9 4.9M19.1 19.1l-1.4-1.4M17.7 6.3l1.4-1.4M4.9 19.1l1.4-1.4"/></svg>
-    </button>
     <div class="who" id="who" data-open="false">
       <button class="who-btn" id="whoBtn" aria-haspopup="true" aria-expanded="false">
         <span class="dot"></span><span id="whoCur">Denis</span>
@@ -994,6 +993,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         <button data-u="Leni" aria-current="false"><span class="dot"></span>Leni</button>
       </div>
     </div>
+    <button class="icon-btn" id="themeBtn" type="button" aria-pressed="false">
+      <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2M12 19.4v2M4.6 12h-2M21.4 12h-2M6.3 6.3L4.9 4.9M19.1 19.1l-1.4-1.4M17.7 6.3l1.4-1.4M4.9 19.1l1.4-1.4"/></svg>
+    </button>
   </div>
 </header>
 
