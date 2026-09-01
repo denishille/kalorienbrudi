@@ -33,16 +33,16 @@ TOKEN = os.environ.get("NOTION_TOKEN")
 
 # --- Kalorien: pro Person fixe Einstellungen ---
 PERSON_CONFIG = {
-    "Denis": {"accent": "#3669B4", "deficitTarget": 1000,
+    "Denis": {"accent": "#275AA2", "deficitTarget": 1000,
               "greenBuf": 95, "zielWeight": 80, "goalIntake": 1900},
-    "Leni":  {"accent": "#AB4878", "deficitTarget": 500,
+    "Leni":  {"accent": "#993669", "deficitTarget": 500,
               "greenBuf": 75, "zielWeight": 60, "goalIntake": 1500},
 }
 
 # --- Naehrstoffe: pro Person Geschlecht + Akzent (eigene Farben fuer die Seite) ---
 NUTRI_CONFIG = {
-    "Denis": {"sex": "m", "accent": "#3669B4"},
-    "Leni":  {"sex": "w", "accent": "#AB4878"},
+    "Denis": {"sex": "m", "accent": "#275AA2"},
+    "Leni":  {"sex": "w", "accent": "#993669"},
 }
 
 # Tages-Referenzwerte (DGE/D-A-CH, Erwachsene) je Geschlecht. Hier anpassbar.
@@ -627,7 +627,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     --pos:#2E7D57;  --pos-bg:rgba(46,125,87,.10);
     --warn:#A8761E; --warn-bg:rgba(168,118,30,.12);
     --neg:#B84A3E;  --neg-bg:rgba(184,74,62,.10);
-    --accent-raw:#3669B4;
+    --accent-raw:#275AA2;
     --accent:var(--accent-raw);
     --accent-ink:#FFFFFF;
     --accent-bg:color-mix(in srgb, var(--accent-raw) 13%, var(--paper));
@@ -656,7 +656,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       --pos:#5FC38E;  --pos-bg:rgba(95,195,142,.13);
       --warn:#DDA950; --warn-bg:rgba(221,169,80,.14);
       --neg:#EC7A6C;  --neg-bg:rgba(236,122,108,.13);
-      --accent:color-mix(in srgb, var(--accent-raw) 55%, #FFFFFF);
+      --accent:color-mix(in srgb, var(--accent-raw) 68%, #FFFFFF);
       --accent-ink:#12120F;
       --accent-bg:color-mix(in srgb, var(--accent-raw) 26%, var(--paper));
       /* Auf dunklem Grund ist --accent bereits aufgehellt - das reicht hier. */
