@@ -966,13 +966,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <script>
 /* Laeuft absichtlich vor dem Body: sonst blitzt beim Laden das helle Theme auf. */
 (function(){
-  var dark;
+  var dark = true;                       // Vorgabe: dunkel
   try{
     var stored = localStorage.getItem('brudi-theme');
-    dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme:dark)').matches;
-  }catch(e){
-    dark = matchMedia('(prefers-color-scheme:dark)').matches;
-  }
+    if(stored) dark = stored === 'dark';  // manuelle Wahl schlaegt die Vorgabe
+  }catch(e){}
   document.documentElement.classList.toggle('dark', dark);
 })();
 </script>
@@ -1562,14 +1560,6 @@ themeBtn.onclick = () => {
   syncTheme();
 };
 syncTheme();
-/* Der Systemwechsel greift nur, solange nichts manuell gewaehlt wurde. */
-matchMedia('(prefers-color-scheme:dark)').addEventListener('change', e => {
-  let stored = null;
-  try{ stored = localStorage.getItem('brudi-theme'); }catch(_){}
-  if(stored) return;
-  document.documentElement.classList.toggle('dark', e.matches);
-  syncTheme();
-});
 
 /* --- Personen-Umschalter: ein Klick wechselt direkt --- */
 const USERS = Object.keys(DATA_KCAL);

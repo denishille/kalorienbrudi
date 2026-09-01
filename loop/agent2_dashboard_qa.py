@@ -18,8 +18,8 @@ SHOTS = REPORTS / "shots"
 APP_SELECTORS = ["#segPeriod", "#segMetric", "#whoBtn", "svg", "canvas", "[role=tab]"]
 
 DESIGN_SYSTEM = """Du bist Senior Product-Designer und UX-Reviewer. Du bewertest
-Screenshots eines Kalorien-Tracking-Dashboards (helles Theme mit Dark-Mode-
-Unterstuetzung, zwei Nutzer).
+Screenshots eines Kalorien-Tracking-Dashboards (dunkles Theme als Vorgabe,
+heller Modus per Umschalter, zwei Nutzer).
 Bewerte streng auf: visuelle Hierarchie, Typografie, Abstände/Ausrichtung,
 Farb- & Kontrastqualität, Konsistenz, Whitespace, Moderne/Cleanliness,
 Lesbarkeit von Charts, mobile Tauglichkeit. Ziel ist eine TOP aussehende,
