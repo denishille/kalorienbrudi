@@ -33,16 +33,16 @@ TOKEN = os.environ.get("NOTION_TOKEN")
 
 # --- Kalorien: pro Person fixe Einstellungen ---
 PERSON_CONFIG = {
-    "Denis": {"accent": "#2F5FD0", "accent2": "#22459B", "deficitTarget": 1000,
+    "Denis": {"accent": "#3669B4", "deficitTarget": 1000,
               "greenBuf": 95, "zielWeight": 80, "goalIntake": 1900},
-    "Leni":  {"accent": "#C0417C", "accent2": "#8E2E5B", "deficitTarget": 500,
+    "Leni":  {"accent": "#AB4878", "deficitTarget": 500,
               "greenBuf": 75, "zielWeight": 60, "goalIntake": 1500},
 }
 
 # --- Naehrstoffe: pro Person Geschlecht + Akzent (eigene Farben fuer die Seite) ---
 NUTRI_CONFIG = {
-    "Denis": {"sex": "m", "accent": "#2F5FD0", "accent2": "#22459B"},
-    "Leni":  {"sex": "w", "accent": "#C0417C", "accent2": "#8E2E5B"},
+    "Denis": {"sex": "m", "accent": "#3669B4"},
+    "Leni":  {"sex": "w", "accent": "#AB4878"},
 }
 
 # Tages-Referenzwerte (DGE/D-A-CH, Erwachsene) je Geschlecht. Hier anpassbar.
@@ -437,7 +437,7 @@ def build_kcal_data(pages, analyse_kcal=None):
         start_weight = weights[0] if weights else weight
         ziel = next((e["zielWeight"] for e in reversed(entries) if e["zielWeight"]), cfg["zielWeight"])
         data[person] = {
-            "accent": cfg["accent"], "accent2": cfg["accent2"],
+            "accent": cfg["accent"],
             "goalIntake": goal, "deficitTarget": cfg["deficitTarget"],
             "weight": weight, "startWeight": start_weight,
             "zielWeight": ziel, "greenBuf": cfg["greenBuf"],
@@ -528,7 +528,7 @@ def build_nutri_data(pages, composite_counts=None):
             best = sorted(foods.items(), key=lambda x: -x[1][0])[:3]
             nut_top[k] = [[n, round(t[0] / t[1], 2)] for n, t in best]
         data[person] = {
-            "accent": cfg["accent"], "accent2": cfg["accent2"],
+            "accent": cfg["accent"],
             "ref": REF[cfg["sex"]],
             "days": days,
             "nutTop": nut_top,
@@ -627,16 +627,16 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     --pos:#2E7D57;  --pos-bg:rgba(46,125,87,.10);
     --warn:#A8761E; --warn-bg:rgba(168,118,30,.12);
     --neg:#B84A3E;  --neg-bg:rgba(184,74,62,.10);
-    --accent-raw:#2F5FD0;
+    --accent-raw:#3669B4;
     --accent:var(--accent-raw);
     --accent-ink:#FFFFFF;
-    --accent-bg:color-mix(in srgb, var(--accent-raw) 10%, transparent);
-    /* Grosse Flaechen wirken bei gleichem Farbwert schwerer und dunkler als
-       duenne Schrift: Diagrammbalken und der Akzent der Kopfleiste hatten exakt
-       denselben Wert, sahen aber verschieden aus. Aufgehellte Variante, damit
-       die Balken wie der Akzent oben WIRKEN. Abgeleitet, nicht fest verdrahtet -
-       der Akzent wechselt je Person (Denis blau, Leni pink). */
-    --accent-fill:color-mix(in srgb, var(--accent-raw) 85%, #FFFFFF);
+    --accent-bg:color-mix(in srgb, var(--accent-raw) 13%, var(--paper));
+    /* Grosse Flaechen wirken bei gleichem Farbwert schwerer als duenne Schrift,
+       deshalb bekommen die Diagrammbalken etwas mehr Helligkeit. Bewusst knapp:
+       85% waren auf den alten, deutlich bunteren Akzent kalibriert und heben die
+       Helligkeit um 0.072 (OKLCH L) - ein sichtbar eigenes Blau. Gegen die jetzt
+       ruhigere Basis genuegen 93% (+0.034), der Ton bleibt derselbe. */
+    --accent-fill:color-mix(in srgb, var(--accent-raw) 93%, #FFFFFF);
     --shadow:0 1px 2px rgba(27,26,23,.04), 0 6px 18px rgba(27,26,23,.045);
     --r:12px;
     --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -658,7 +658,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       --neg:#EC7A6C;  --neg-bg:rgba(236,122,108,.13);
       --accent:color-mix(in srgb, var(--accent-raw) 55%, #FFFFFF);
       --accent-ink:#12120F;
-      --accent-bg:color-mix(in srgb, var(--accent-raw) 22%, transparent);
+      --accent-bg:color-mix(in srgb, var(--accent-raw) 26%, var(--paper));
       /* Auf dunklem Grund ist --accent bereits aufgehellt - das reicht hier. */
       --accent-fill:var(--accent);
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.28);
@@ -986,7 +986,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <button role="tab" data-pg="nutri" aria-selected="false">Nährstoffe</button>
     </nav>
     <button class="who-btn" id="whoBtn" type="button">
-      <span class="dot" id="whoDot"></span><span id="whoCur">Denis</span>
+      <span class="dot"></span><span id="whoCur">Denis</span>
       <svg class="swap" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h13l-3.5-3.5"/><path d="M20 15H7l3.5 3.5"/></svg>
     </button>
     <button class="icon-btn" id="themeBtn" type="button" aria-pressed="false">
@@ -1535,7 +1535,6 @@ function render(){
   document.documentElement.style.setProperty('--accent-raw', src[curUser].accent);
   document.querySelectorAll('#tabs button').forEach(b =>
     b.setAttribute('aria-selected', String(b.dataset.pg === curPage)));
-  el('whoDot').style.background = src[curUser].accent;
   const other = nextUser();
   el('whoBtn').title = 'Zu ' + other + ' wechseln';
   el('whoBtn').setAttribute('aria-label', 'Angezeigte Person: ' + curUser + ' – zu ' + other + ' wechseln');
