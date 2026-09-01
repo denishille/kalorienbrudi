@@ -2,9 +2,10 @@
 name: Deploy static content to Pages
 
 on:
-  # Bei Push auf den Hauptbranch
+  # Bei JEDER Code-Aenderung: Push auf irgendeinen Branch loest den Build
+  # sofort aus. Deployt wird danach nur von "main" (siehe Job "deploy").
   push:
-    branches: ["main"]
+    branches: ["**"]
   # Regelmaessig automatisch (13:00 und 19:00 UTC). Cron ist immer UTC.
   schedule:
     - cron: "0 13 * * *"
@@ -18,17 +19,16 @@ permissions:
   pages: write
   id-token: write
 
-# Nur ein Deployment gleichzeitig, laufende nicht abbrechen
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # ---------------------------------------------------------------------------
+  # 1) Bauen - laeuft bei jeder Aenderung, auf jedem Branch.
+  # ---------------------------------------------------------------------------
+  build:
     runs-on: ubuntu-latest
+    # Pro Branch nur ein Build; ein neuer Push loest den alten ab.
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,8 +50,24 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Gesamtes Repository hochladen (enthaelt die frisch gebaute index.html)
-          path: '.'
+          path: "."
 
+  # ---------------------------------------------------------------------------
+  # 2) Deployen - nur von "main", damit Branch-Builds die Live-Seite nicht
+  #    ueberschreiben. Branch-Pushes bauen also, veroeffentlichen aber nicht.
+  # ---------------------------------------------------------------------------
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Nur ein Deployment gleichzeitig, laufende nicht abbrechen
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
