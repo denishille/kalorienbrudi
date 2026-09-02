@@ -1014,7 +1014,17 @@ const TODAY = "__TODAY_ISO__";
 const BUILD = "__BUILD_DATE__";
 const NOTION_URL = 'https://www.notion.so/';
 
-let curPage = 'kcal', curUser = 'Denis';
+let curPage = 'kcal';
+/* Zuletzt gewaehlte Person merken. Faellt auf die erste Person zurueck, wenn
+   nichts gespeichert ist oder der gespeicherte Name nicht mehr existiert -
+   sonst stuende die Seite bei einem umbenannten Eintrag vor leeren Daten. */
+let curUser = (function(){
+  try{
+    const stored = localStorage.getItem('brudi-user');
+    if(stored && DATA_KCAL[stored]) return stored;
+  }catch(e){}
+  return Object.keys(DATA_KCAL)[0];
+})();
 
 /* ============================ Helfer ============================ */
 const de = n => n.toLocaleString('de-DE');
@@ -1570,6 +1580,7 @@ const USERS = Object.keys(DATA_KCAL);
 const nextUser = () => USERS[(USERS.indexOf(curUser) + 1) % USERS.length];
 el('whoBtn').onclick = () => {
   curUser = nextUser(); curMetric = 'kcal'; openCheck = null;
+  try{ localStorage.setItem('brudi-user', curUser); }catch(e){}
   render();
 };
 
