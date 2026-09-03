@@ -1,0 +1,68 @@
+# Fuehrt SQL-Dateien aus supabase/ gegen die Datenbank aus.
+#
+# Existiert, weil die Claude-Sandbox supabase.co nicht erreicht: der
+# Egress-Proxy lehnt REST, Management-API und Pooler gleichermassen ab
+# (403 auf CONNECT). Ein Runner kommt hin - damit laufen Migrationen
+# nachvollziehbar hier statt per Copy-Paste im SQL-Editor.
+#
+# Braucht das Secret SUPABASE_DB_URL: Supabase -> Project Settings ->
+# Database -> Connection string -> URI. Die DIREKTE Verbindung bzw. den
+# Session Pooler (Port 5432) nehmen, nicht den Transaction Pooler (6543) -
+# der kann kein zuverlaessiges DDL.
+name: Supabase-Migration ausfuehren
+
+on:
+  workflow_dispatch:
+    inputs:
+      datei:
+        description: "SQL-Datei unterhalb von supabase/"
+        required: true
+        default: "schema.sql"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pfad einsperren: nur Dateien aus supabase/, kein Ausbrechen ueber ../
+      - name: Datei pruefen
+        env:
+          DATEI: ${{ inputs.datei }}
+        run: |
+          case "$DATEI" in
+            */*|"") echo "Nur ein Dateiname direkt in supabase/, kein Pfad."; exit 1 ;;
+            *.sql) ;;
+            *) echo "Nur .sql-Dateien."; exit 1 ;;
+          esac
+          test -f "supabase/$DATEI" || { echo "supabase/$DATEI existiert nicht."; exit 1; }
+          echo "Fuehre supabase/$DATEI aus:"
+          cat "supabase/$DATEI"
+
+      - name: Ausfuehren
+        env:
+          PGURL: ${{ secrets.SUPABASE_DB_URL }}
+          DATEI: ${{ inputs.datei }}
+        run: |
+          test -n "$PGURL" || { echo "Secret SUPABASE_DB_URL fehlt."; exit 1; }
+          # ON_ERROR_STOP: bei einem Fehler abbrechen statt weiterzulaufen
+          psql "$PGURL" -v ON_ERROR_STOP=1 -f "supabase/$DATEI"
+
+      - name: Ergebnis zeigen
+        env:
+          PGURL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          psql "$PGURL" -c "\d+ public.tagesuebersicht"
+          psql "$PGURL" -c "\d+ public.lebensmittel_analyse"
+          psql "$PGURL" -c "select 'tagesuebersicht' as tabelle, count(*) from public.tagesuebersicht
+                            union all
+                            select 'lebensmittel_analyse', count(*) from public.lebensmittel_analyse;"
