@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Notion -> Supabase spiegeln.
+Notion -> Supabase: die letzte Bruecke.
 
-Uebergangswerkzeug fuer den Umzug: solange die Eintraege noch ueber den
-/brudi-Skill in Notion landen, holt dieser Lauf sie nach Supabase. Sobald die
-Eingabe direkt auf Supabase schreibt, wird das Skript ueberfluessig.
+Der Build liest inzwischen ausschliesslich Supabase. Die Eingabe laeuft aber
+noch ueber den /brudi-Skill nach Notion - dieses Skript holt sie herueber.
+Es ist damit die EINZIGE verbliebene Notion-Abhaengigkeit im Projekt.
 
-Laeuft absichtlich in GitHub Actions und nicht lokal: die Claude-Sandbox
-erreicht supabase.co nicht (Egress-Proxy), ein Runner schon.
+Sobald die Eingabe direkt auf Supabase schreibt, koennen diese Datei, der
+Workflow supabase-sync.yml und das Secret NOTION_TOKEN ersatzlos weg.
 
-Die Notion-Seite wird nicht neu implementiert, sondern aus build_dashboard
-importiert - eine Aenderung an den Feldern wirkt damit an beiden Stellen.
+Laeuft in GitHub Actions und nicht lokal: die Claude-Sandbox erreicht
+supabase.co nicht (Egress-Proxy lehnt CONNECT ab), ein Runner schon.
 
 Env:
   NOTION_TOKEN           Notion Internal Integration Token
-  SUPABASE_URL           z. B. https://<projekt>.supabase.co
+  SUPABASE_URL           https://<projekt>.supabase.co
   SUPABASE_SERVICE_KEY   service_role-Key (umgeht RLS, nur in Actions)
 """
 
@@ -24,43 +24,76 @@ import sys
 import urllib.error
 import urllib.request
 
-from build_dashboard import (
-    DATA_SOURCE_KCAL, DATA_SOURCE_NUTRI, notion_query_all,
-    num, select_name, date_start, title_text, checkbox,
-)
+# Die Spaltenzuordnung gehoert zum Ziel-Schema und steht deshalb dort, wo sie
+# dauerhaft gebraucht wird. Hier nur ausgeliehen, damit es sie nur einmal gibt.
+from build_dashboard import NUTRIENT_COLUMNS, CATEGORY_COLUMNS
+
+# --- Notion ----------------------------------------------------------------
+# Bewusst hier und nicht in build_dashboard: der Build ist notionfrei, und
+# beim Abschalten faellt diese Datei als Ganzes weg.
+DATA_SOURCE_KCAL = "a748d265-3bbe-448b-b4e8-c8111c208c46"   # Tagesuebersicht
+DATA_SOURCE_NUTRI = "be09a702-364a-4f0f-9548-5f4f32092dee"  # Lebensmittel-Analyse
+NOTION_VERSION = "2025-09-03"
+NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
 
 SUPABASE_URL = (os.environ.get("SUPABASE_URL") or "").rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 CHUNK = 500
 
-# Notion-Property -> Supabase-Spalte. Einheiten wandern in den Spaltennamen,
-# damit in SQL keine Klammern und Sonderzeichen zu quoten sind.
-NUTRIENT_COLUMNS = {
-    "Ballaststoffe (g)": "ballaststoffe_g",
-    "Calcium (mg)": "calcium_mg",
-    "Eisen (mg)": "eisen_mg",
-    "Folat (µg)": "folat_ug",
-    "Jod (µg)": "jod_ug",
-    "Kalium (mg)": "kalium_mg",
-    "Magnesium (mg)": "magnesium_mg",
-    "Omega-3 (g)": "omega3_g",
-    "Selen (µg)": "selen_ug",
-    "Vitamin A (µg)": "vitamin_a_ug",
-    "Vitamin B12 (µg)": "vitamin_b12_ug",
-    "Vitamin C (mg)": "vitamin_c_mg",
-    "Vitamin D (µg)": "vitamin_d_ug",
-    "Vitamin E (mg)": "vitamin_e_mg",
-    "Vitamin K (µg)": "vitamin_k_ug",
-    "Zink (mg)": "zink_mg",
-    "Cholesterin (mg)": "cholesterin_mg",
-}
-CATEGORY_COLUMNS = {
-    "Darmgesundheit": "darmgesundheit",
-    "Low FODMAP": "low_fodmap",
-    "Säure-Base": "saeure_base",
-}
+
+def notion_query_all(data_source_id):
+    """Alle Seiten einer Notion-Datenquelle (mit Pagination)."""
+    url = "https://api.notion.com/v1/data_sources/%s/query" % data_source_id
+    headers = {
+        "Authorization": "Bearer %s" % NOTION_TOKEN,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json",
+    }
+    results, cursor = [], None
+    while True:
+        body = {"page_size": 100}
+        if cursor:
+            body["start_cursor"] = cursor
+        req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
+                                     headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            sys.stderr.write("Notion-Fehler %s: %s\n"
+                             % (e.code, e.read().decode("utf-8", "replace")))
+            raise
+        results.extend(data.get("results", []))
+        if not data.get("has_more"):
+            return results
+        cursor = data.get("next_cursor")
 
 
+def num(props, name):
+    p = props.get(name)
+    return p.get("number") if p else None
+
+
+def select_name(props, name):
+    sel = (props.get(name) or {}).get("select")
+    return sel.get("name") if sel else None
+
+
+def date_start(props, name):
+    d = (props.get(name) or {}).get("date")
+    return d.get("start")[:10] if d and d.get("start") else None
+
+
+def title_text(props, name):
+    arr = (props.get(name) or {}).get("title") or []
+    return "".join(x.get("plain_text", "") for x in arr).strip() or None
+
+
+def checkbox(props, name):
+    return bool((props.get(name) or {}).get("checkbox"))
+
+
+# --- Supabase ---------------------------------------------------------------
 def upsert(table, rows):
     """Zeilen in Bloecken upserten, Konflikt auf notion_id."""
     if not rows:
@@ -84,8 +117,8 @@ def upsert(table, rows):
             with urllib.request.urlopen(req) as resp:
                 resp.read()
         except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8", "replace")
-            sys.stderr.write("Supabase-Fehler %s bei %s: %s\n" % (e.code, table, body))
+            sys.stderr.write("Supabase-Fehler %s bei %s: %s\n"
+                             % (e.code, table, e.read().decode("utf-8", "replace")))
             raise
         written += len(block)
         print("  %s: %d/%d" % (table, written, len(rows)))
@@ -145,7 +178,7 @@ def build_analyse_rows(pages):
 
 
 def main():
-    missing = [n for n, v in (("NOTION_TOKEN", os.environ.get("NOTION_TOKEN")),
+    missing = [n for n, v in (("NOTION_TOKEN", NOTION_TOKEN),
                               ("SUPABASE_URL", SUPABASE_URL),
                               ("SUPABASE_SERVICE_KEY", SERVICE_KEY)) if not v]
     if missing:

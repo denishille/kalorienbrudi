@@ -1,7 +1,7 @@
-# Baut das Dashboard aus Notion und veroeffentlicht es auf Cloudflare Pages.
+# Baut das Dashboard aus Supabase und veroeffentlicht es auf Cloudflare Pages.
 #
 # Warum der Build hier bleibt und nicht in Cloudflare laeuft: die Seite muss
-# sich zweimal taeglich aus Notion aktualisieren, auch ohne Code-Aenderung.
+# sich zweimal taeglich aus Supabase aktualisieren, auch ohne Code-Aenderung.
 # Die Git-Anbindung von Cloudflare Pages kennt keine geplanten Builds - dort
 # wuerde nur noch bei Pushes gebaut und die Zahlen wuerden still veralten.
 name: Build und Deploy
@@ -38,9 +38,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Dashboard aus Notion bauen
+      - name: Dashboard aus Supabase bauen
         env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python build_dashboard.py
 
       # Nur die fertige Seite geht live. Vorher wurde das gesamte Repository

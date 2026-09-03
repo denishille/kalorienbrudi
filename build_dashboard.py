@@ -2,16 +2,17 @@
 """
 Kalorienbrudi + Naehrstoffbrudi Dashboard Generator
 ---------------------------------------------------
-Zieht alle Eintraege aus ZWEI Notion-Datenbanken und erzeugt EINE statische
+Zieht alle Eintraege aus ZWEI Supabase-Tabellen und erzeugt EINE statische
 index.html mit Umschalter oben (Kalorien <-> Naehrstoffe).
 
-  - Kalorien:   "Tagesuebersicht"      (eine Zeile pro Tag/Person)
-  - Naehrstoffe:"Lebensmittel-Analyse"  (eine Zeile pro Lebensmittel)
+  - Kalorien:   "tagesuebersicht"      (eine Zeile pro Tag/Person)
+  - Naehrstoffe:"lebensmittel_analyse" (eine Zeile pro Lebensmittel)
 
 Benoetigt nur die Python-Standardbibliothek (urllib) - kein pip install.
 
 Env:
-  NOTION_TOKEN   Notion Internal Integration Token (als GitHub-Secret hinterlegen)
+  SUPABASE_URL           https://<projekt>.supabase.co
+  SUPABASE_SERVICE_KEY   service_role-Key (umgeht RLS, gehoert nur in Actions)
 """
 
 import os
@@ -26,10 +27,11 @@ from collections import Counter, defaultdict
 # ----------------------------------------------------------------------------
 # Konfiguration
 # ----------------------------------------------------------------------------
-DATA_SOURCE_KCAL = "a748d265-3bbe-448b-b4e8-c8111c208c46"   # Tagesuebersicht
-DATA_SOURCE_NUTRI = "be09a702-364a-4f0f-9548-5f4f32092dee"  # Lebensmittel-Analyse
-NOTION_VERSION = "2025-09-03"
-TOKEN = os.environ.get("NOTION_TOKEN")
+SUPABASE_URL = (os.environ.get("SUPABASE_URL") or "").rstrip("/")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
+TABLE_TAGE = "tagesuebersicht"
+TABLE_ANALYSE = "lebensmittel_analyse"
+PAGE_SIZE = 1000
 
 # --- Kalorien: pro Person fixe Einstellungen ---
 PERSON_CONFIG = {
@@ -67,72 +69,83 @@ REF = {
 NUM_KEYS = list(REF["m"].keys()) + ["Cholesterin (mg)"]
 CAT_KEYS = ["Darmgesundheit", "Low FODMAP", "Säure-Base"]
 
+# Anzeigename -> Spalte. Der Anzeigename traegt die Einheit und steuert
+# Beschriftung und Referenzwerte im Dashboard; die Spalte kommt ohne Klammern
+# und Sonderzeichen aus. sync_supabase.py nutzt dieselbe Zuordnung.
+NUTRIENT_COLUMNS = {
+    "Ballaststoffe (g)": "ballaststoffe_g",
+    "Calcium (mg)": "calcium_mg",
+    "Eisen (mg)": "eisen_mg",
+    "Folat (µg)": "folat_ug",
+    "Jod (µg)": "jod_ug",
+    "Kalium (mg)": "kalium_mg",
+    "Magnesium (mg)": "magnesium_mg",
+    "Omega-3 (g)": "omega3_g",
+    "Selen (µg)": "selen_ug",
+    "Vitamin A (µg)": "vitamin_a_ug",
+    "Vitamin B12 (µg)": "vitamin_b12_ug",
+    "Vitamin C (mg)": "vitamin_c_mg",
+    "Vitamin D (µg)": "vitamin_d_ug",
+    "Vitamin E (mg)": "vitamin_e_mg",
+    "Vitamin K (µg)": "vitamin_k_ug",
+    "Zink (mg)": "zink_mg",
+    "Cholesterin (mg)": "cholesterin_mg",
+}
+CATEGORY_COLUMNS = {
+    "Darmgesundheit": "darmgesundheit",
+    "Low FODMAP": "low_fodmap",
+    "Säure-Base": "saeure_base",
+}
+
 # Erlaubte relative Abweichung zwischen Tages-Total (Tagesuebersicht) und der
 # Summe der Einzelposten (Lebensmittel-Analyse). Darueber -> Warn-Flag im Build.
 KCAL_TOL = 0.05
 
 
 # ----------------------------------------------------------------------------
-# Notion-Abfrage (mit Pagination) - parametrisiert auf die Datenquelle
+# Supabase-Abfrage (mit Pagination) - parametrisiert auf die Tabelle
 # ----------------------------------------------------------------------------
-def notion_query_all(data_source_id):
-    url = "https://api.notion.com/v1/data_sources/%s/query" % data_source_id
+def supabase_select(table):
+    """Alle Zeilen einer Tabelle holen.
+
+    PostgREST gibt nicht beliebig viele Zeilen auf einmal heraus, deshalb in
+    Bloecken. Sortiert wird nach id - dem einzigen garantiert eindeutigen Wert.
+    Bei mehrdeutiger Sortierung koennen zwischen zwei Bloecken Zeilen doppelt
+    auftauchen oder verloren gehen."""
     headers = {
-        "Authorization": "Bearer %s" % TOKEN,
-        "Notion-Version": NOTION_VERSION,
-        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer %s" % SUPABASE_KEY,
+        "Accept": "application/json",
     }
-    results, cursor = [], None
+    rows, offset = [], 0
     while True:
-        body = {"page_size": 100}
-        if cursor:
-            body["start_cursor"] = cursor
-        req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
-                                     headers=headers, method="POST")
+        url = ("%s/rest/v1/%s?select=*&order=id.asc&limit=%d&offset=%d"
+               % (SUPABASE_URL, table, PAGE_SIZE, offset))
+        req = urllib.request.Request(url, headers=headers, method="GET")
         try:
             with urllib.request.urlopen(req) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
+                batch = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            sys.stderr.write("Notion API Fehler %s: %s\n" % (e.code, e.read().decode("utf-8")))
+            sys.stderr.write("Supabase-Fehler %s bei %s: %s\n"
+                             % (e.code, table, e.read().decode("utf-8", "replace")))
             raise
-        results.extend(data.get("results", []))
-        if data.get("has_more"):
-            cursor = data.get("next_cursor")
-        else:
-            break
-    return results
+        rows.extend(batch)
+        if len(batch) < PAGE_SIZE:
+            return rows
+        offset += PAGE_SIZE
 
 
-def num(props, name):
-    p = props.get(name)
-    if not p:
+def numv(row, col):
+    """Zahlenspalte robust lesen: numeric kann als Zahl oder als Zeichenkette
+    ankommen. Ganze Werte bleiben ganzzahlig, damit im JSON keine .0 landen."""
+    v = row.get(col)
+    if v is None:
         return None
-    return p.get("number")
-
-
-def select_name(props, name):
-    p = props.get(name) or {}
-    sel = p.get("select")
-    return sel.get("name") if sel else None
-
-
-def date_start(props, name):
-    p = props.get(name) or {}
-    d = p.get("date")
-    return d.get("start")[:10] if d and d.get("start") else None
-
-
-def title_text(props, name):
-    """Titel-Property als Klartext."""
-    p = props.get(name) or {}
-    arr = p.get("title") or []
-    t = "".join(x.get("plain_text", "") for x in arr).strip()
-    return t or None
-
-
-def checkbox(props, name):
-    p = props.get(name) or {}
-    return bool(p.get("checkbox"))
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return int(f) if f.is_integer() else f
 
 
 # ----------------------------------------------------------------------------
@@ -140,18 +153,16 @@ def checkbox(props, name):
 # (Lebensmittel-Analyse). Deckt Erfassungsfehler frueh im Build auf, ohne den
 # Build abzubrechen - es werden nur Warnungen ausgegeben und Tage markiert.
 # ----------------------------------------------------------------------------
-def analyse_kcal_by_day(nutri_pages):
-    """Pro (Person, Datum): Summe der Einzelposten-Kalorien aus der Analyse-DB."""
+def analyse_kcal_by_day(analyse_rows):
+    """Pro (Person, Datum): Summe der Einzelposten-Kalorien aus der Analyse."""
     by_day = defaultdict(float)
-    for pg in nutri_pages:
-        props = pg.get("properties", {})
-        if checkbox(props, "Duplikat"):
+    for r in analyse_rows:
+        if r.get("duplikat"):
             continue
-        person = select_name(props, "Person")
-        d = date_start(props, "Datum")
+        person, d = r.get("person"), r.get("datum")
         if person is None or d is None:
             continue
-        by_day[(person, d)] += num(props, "Kalorien (kcal)") or 0
+        by_day[(person, d)] += numv(r, "kalorien_kcal") or 0
     return by_day
 
 
@@ -160,18 +171,15 @@ WD_DE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag",
          "Freitag", "Samstag", "Sonntag"]
 
 
-def check_weekday_consistency(kcal_pages):
+def check_weekday_consistency(tage_rows):
     """Vergleicht den im Titel 'Tag' erfassten Wochentag mit dem tatsaechlichen
     Wochentag des Datums (z. B. 'Mittwoch, 21.05.26', obwohl der 21.05. ein
     Donnerstag ist). Deckt Erfassungsfehler frueh auf und verhindert falsche
     Zeitachsen. Gibt eine sortierte Liste von Warntexten zurueck - der Build
     laeuft weiter (nur Warnung, kein Abbruch)."""
     warns = []
-    for pg in kcal_pages:
-        props = pg.get("properties", {})
-        person = select_name(props, "Person")
-        d = date_start(props, "Datum")
-        tag = title_text(props, "Tag")
+    for r in tage_rows:
+        person, d, tag = r.get("person"), r.get("datum"), r.get("tag")
         if person not in PERSON_CONFIG or d is None or not tag:
             continue
         try:
@@ -185,15 +193,13 @@ def check_weekday_consistency(kcal_pages):
     return warns
 
 
-def check_kcal_consistency(kcal_pages, analyse_kcal):
+def check_kcal_consistency(tage_rows, analyse_kcal):
     """Vergleicht Tages-Total mit der Einzelposten-Summe pro (Person, Tag).
     Gibt eine sortierte Liste von Warntexten zurueck (kein Build-Abbruch)."""
     warns = []
-    for pg in kcal_pages:
-        props = pg.get("properties", {})
-        person = select_name(props, "Person")
-        d = date_start(props, "Datum")
-        total = num(props, "Kalorien (kcal)")
+    for r in tage_rows:
+        person, d = r.get("person"), r.get("datum")
+        total = numv(r, "kalorien_kcal")
         if person not in PERSON_CONFIG or d is None or total is None:
             continue
         key = (person, d)
@@ -237,17 +243,16 @@ def looks_like_composite(name):
     return any(k in low for k in COMPOSITE_HINTS) or low.count(",") >= 1
 
 
-def check_composite_items(nutri_pages):
+def check_composite_items(analyse_rows):
     """Sammelt verdaechtige Sammelposten pro Person. Gibt (warns, counts) zurueck:
     warns = sortierte Warntexte (kein Build-Abbruch), counts = {Person: Anzahl}."""
     warns, counts = [], defaultdict(int)
-    for pg in nutri_pages:
-        props = pg.get("properties", {})
-        if checkbox(props, "Duplikat"):
+    for r in analyse_rows:
+        if r.get("duplikat"):
             continue
-        person = select_name(props, "Person")
-        name = title_text(props, "Lebensmittel")
-        d = date_start(props, "Datum")
+        person = r.get("person")
+        name = r.get("lebensmittel")
+        d = r.get("datum")
         if person not in NUTRI_CONFIG or not name:
             continue
         if looks_like_composite(name):
@@ -385,19 +390,18 @@ def make_canon(names):
 # ----------------------------------------------------------------------------
 # Kalorien-Daten aufbereiten
 # ----------------------------------------------------------------------------
-def build_kcal_data(pages, analyse_kcal=None):
+def build_kcal_data(tage_rows, analyse_kcal=None):
     analyse_kcal = analyse_kcal or {}
     raw = {k: [] for k in PERSON_CONFIG}
-    # Tage, die in Notion existieren, aber keine Kalorien tragen (v.a. Leni):
+    # Tage, die zwar erfasst sind, aber keine Kalorien tragen (v.a. Leni):
     # werden NICHT gewertet, aber gezaehlt und im Dashboard gekennzeichnet.
     skipped = {k: [] for k in PERSON_CONFIG}
-    for pg in pages:
-        props = pg.get("properties", {})
-        person = select_name(props, "Person")
+    for r in tage_rows:
+        person = r.get("person")
         if person not in raw:
             continue
-        d = date_start(props, "Datum")
-        kcal = num(props, "Kalorien (kcal)")
+        d = r.get("datum")
+        kcal = numv(r, "kalorien_kcal")
         if d is None:
             continue
         if kcal is None:
@@ -406,12 +410,12 @@ def build_kcal_data(pages, analyse_kcal=None):
         raw[person].append({
             "d": d,
             "kcal": kcal,
-            "p": num(props, "Protein (g)") or 0,
-            "c": num(props, "Kohlenhydrate (g)") or 0,
-            "f": num(props, "Fett (g)") or 0,
-            "goalIntake": num(props, "Kalorienziel (kcal)"),
-            "weight": num(props, "Gewicht (kg)"),
-            "zielWeight": num(props, "Zielgewicht"),
+            "p": numv(r, "protein_g") or 0,
+            "c": numv(r, "kohlenhydrate_g") or 0,
+            "f": numv(r, "fett_g") or 0,
+            "goalIntake": numv(r, "kalorienziel_kcal"),
+            "weight": numv(r, "gewicht_kg"),
+            "zielWeight": numv(r, "zielgewicht"),
         })
 
     data = {}
@@ -428,7 +432,7 @@ def build_kcal_data(pages, analyse_kcal=None):
                 mismatch += 1
                 mismatch_list.append({"d": e["d"], "t": round(e["kcal"]), "s": round(s)})
             days.append(day)
-        # Fallback auf Standardwerte, wenn Notion die Spalte durchgehend leer laesst.
+        # Fallback auf Standardwerte, wenn die Spalte durchgehend leer ist.
         goal_from_data = any(e["goalIntake"] for e in entries)
         ziel_from_data = any(e["zielWeight"] for e in entries)
         goal = next((e["goalIntake"] for e in reversed(entries) if e["goalIntake"]), cfg["goalIntake"])
@@ -460,22 +464,21 @@ def build_kcal_data(pages, analyse_kcal=None):
 # Naehrstoff-Daten aufbereiten: pro Person -> pro Tag aggregiert
 # cf = pro Kategorie [positive Lebensmittel, negative Lebensmittel] des Tages
 # ----------------------------------------------------------------------------
-def build_nutri_data(pages, composite_counts=None):
+def build_nutri_data(analyse_rows, composite_counts=None):
     composite_counts = composite_counts or {}
     raw = {k: [] for k in NUTRI_CONFIG}
-    for pg in pages:
-        props = pg.get("properties", {})
-        person = select_name(props, "Person")
+    for r in analyse_rows:
+        person = r.get("person")
         if person not in raw:
             continue
-        d = date_start(props, "Datum")
+        d = r.get("datum")
         if d is None:
             continue
-        rec = {"d": d, "name": title_text(props, "Lebensmittel")}
+        rec = {"d": d, "name": r.get("lebensmittel")}
         for k in NUM_KEYS:
-            rec[k] = num(props, k) or 0
+            rec[k] = numv(r, NUTRIENT_COLUMNS[k]) or 0
         for c in CAT_KEYS:
-            rec[c] = select_name(props, c)
+            rec[c] = r.get(CATEGORY_COLUMNS[c])
         raw[person].append(rec)
 
     data = {}
@@ -543,25 +546,29 @@ def build_nutri_data(pages, composite_counts=None):
 # Hauptlogik
 # ----------------------------------------------------------------------------
 def main():
-    if not TOKEN:
-        sys.stderr.write("Fehler: NOTION_TOKEN ist nicht gesetzt.\n")
+    missing = [n for n, v in (("SUPABASE_URL", SUPABASE_URL),
+                              ("SUPABASE_SERVICE_KEY", SUPABASE_KEY)) if not v]
+    if missing:
+        sys.stderr.write("Fehler: %s nicht gesetzt.\n" % ", ".join(missing))
         sys.exit(1)
-    kcal_pages = notion_query_all(DATA_SOURCE_KCAL)
-    nutri_pages = notion_query_all(DATA_SOURCE_NUTRI)
-    analyse_kcal = analyse_kcal_by_day(nutri_pages)
-    comp_warns, comp_counts = check_composite_items(nutri_pages)
-    kcal = build_kcal_data(kcal_pages, analyse_kcal)
-    nutri = build_nutri_data(nutri_pages, comp_counts)
+    tage_rows = supabase_select(TABLE_TAGE)
+    analyse_rows = supabase_select(TABLE_ANALYSE)
+    print("Supabase: %d Tageszeilen, %d Analysezeilen gelesen."
+          % (len(tage_rows), len(analyse_rows)))
+    analyse_kcal = analyse_kcal_by_day(analyse_rows)
+    comp_warns, comp_counts = check_composite_items(analyse_rows)
+    kcal = build_kcal_data(tage_rows, analyse_kcal)
+    nutri = build_nutri_data(analyse_rows, comp_counts)
 
     # Warn-Flag: Tages-Total vs. Einzelposten-Summe (bricht den Build nicht ab).
-    warns = check_kcal_consistency(kcal_pages, analyse_kcal)
+    warns = check_kcal_consistency(tage_rows, analyse_kcal)
     if warns:
         sys.stderr.write("WARNUNG: %d Tag(e) mit Total<->Analyse-Abweichung:\n" % len(warns))
         for w in warns:
             sys.stderr.write("  - %s\n" % w)
 
     # Warn-Flag: erfasster Wochentag vs. echtes Datum (bricht den Build nicht ab).
-    wd_warns = check_weekday_consistency(kcal_pages)
+    wd_warns = check_weekday_consistency(tage_rows)
     if wd_warns:
         sys.stderr.write("WARNUNG: %d Tag(e) mit falschem Wochentag:\n" % len(wd_warns))
         for w in wd_warns:
@@ -1012,7 +1019,6 @@ const DATA_KCAL = __DATA_KCAL__;
 const DATA_NUTRI = __DATA_NUTRI__;
 const TODAY = "__TODAY_ISO__";
 const BUILD = "__BUILD_DATE__";
-const NOTION_URL = 'https://www.notion.so/';
 
 let curPage = 'kcal';
 /* Zuletzt gewaehlte Person merken. Faellt auf die erste Person zurueck, wenn
@@ -1105,8 +1111,7 @@ function renderKcal(){
 
   if(!u.days || !u.days.length){
     C.innerHTML = emptyState(ICON_ADD, 'Noch keine Einträge für '+curUser,
-      'Sobald Mahlzeiten in Notion landen, erscheint die Auswertung hier automatisch.',
-      '<a class="btn" href="'+NOTION_URL+'" target="_blank" rel="noopener">In Notion eintragen</a>');
+      'Sobald Mahlzeiten erfasst sind, erscheint die Auswertung hier automatisch.');
     el('lead').textContent = '';
     el('foot').textContent = 'Stand: '+BUILD+' · keine Daten';
     return;
@@ -1244,8 +1249,8 @@ function dqSection(q){
   const items = [];
   if(q.skippedDays)  items.push('<b>'+q.skippedDays+'</b> Tag(e) ohne Kalorien-Eintrag – nicht gewertet');
   if(q.mismatchDays) items.push('<b>'+q.mismatchDays+'</b> Tag(e): Tages-Total weicht von der Einzelposten-Summe ab');
-  if(q.goalFromData === false) items.push('Kalorienziel ist ein Standardwert, nicht aus Notion');
-  if(q.zielFromData === false) items.push('Zielgewicht ist ein Standardwert, nicht aus Notion');
+  if(q.goalFromData === false) items.push('Kalorienziel ist ein Standardwert, nicht aus den Daten');
+  if(q.zielFromData === false) items.push('Zielgewicht ist ein Standardwert, nicht aus den Daten');
   if(!items.length) return '';
   let detail = '';
   if((q.mismatchList || []).length){
@@ -1362,8 +1367,7 @@ function renderNutri(){
   if(!u.days.length){
     el('headControls').innerHTML = '';
     C.innerHTML = emptyState(ICON_ADD, 'Noch keine Einträge für '+curUser,
-      'Sobald in der Lebensmittel-Analyse Zeilen für '+curUser+' liegen, erscheint die Auswertung hier.',
-      '<a class="btn" href="'+NOTION_URL+'" target="_blank" rel="noopener">In Notion eintragen</a>');
+      'Sobald für '+curUser+' Lebensmittel erfasst sind, erscheint die Auswertung hier.');
     el('lead').textContent = '';
     el('foot').textContent = 'Stand: '+BUILD+' · keine Daten';
     return;
