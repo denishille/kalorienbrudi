@@ -93,6 +93,11 @@ def checkbox(props, name):
     return bool((props.get(name) or {}).get("checkbox"))
 
 
+def rich_text(props, name):
+    arr = (props.get(name) or {}).get("rich_text") or []
+    return "".join(x.get("plain_text", "") for x in arr).strip() or None
+
+
 # --- Supabase ---------------------------------------------------------------
 def upsert(table, rows):
     """Zeilen in Bloecken upserten, Konflikt auf notion_id."""
@@ -147,6 +152,14 @@ def build_tage_rows(pages):
             "kalorienziel_kcal": num(props, "Kalorienziel (kcal)"),
             "gewicht_kg": num(props, "Gewicht (kg)"),
             "zielgewicht": num(props, "Zielgewicht"),
+            # Notizfelder: das Dashboard zeigt sie nicht, aber sie sind
+            # eingetippt worden und gingen beim Umzug sonst verloren.
+            "ziel": select_name(props, "Ziel"),
+            "notizen": rich_text(props, "Notizen"),
+            "kalorienverbrauch_kcal": num(props, "Kalorienverbrauch"),
+            "bauch": rich_text(props, "Bauch"),
+            "stuhlgang": rich_text(props, "Stuhlgang"),
+            "symptome": rich_text(props, "Symptome"),
         })
     return rows, skipped
 
@@ -168,6 +181,10 @@ def build_analyse_rows(pages):
             "lebensmittel": title_text(props, "Lebensmittel"),
             "duplikat": checkbox(props, "Duplikat"),
             "kalorien_kcal": num(props, "Kalorien (kcal)"),
+            "eiweiss_g": num(props, "Eiweiß (g)"),
+            "fett_g": num(props, "Fett (g)"),
+            "kohlenhydrate_g": num(props, "Kohlenhydrate (g)"),
+            "zucker_g": num(props, "Zucker (g)"),
         }
         for prop, col in NUTRIENT_COLUMNS.items():
             row[col] = num(props, prop)
@@ -215,13 +232,19 @@ def main():
     print("  %d Tageszeilen, %d Analysezeilen" % (len(tage_pages), len(analyse_pages)))
 
     # Bestandsaufnahme, bevor die Eingabe umzieht: was haelt Notion wirklich?
+    # Die vier Notion-Formeln sind absichtlich nicht dabei - sie rechnen sich
+    # restlos aus Kalorien und Kalorienziel und gehoeren nicht in die Ablage.
     report_properties("Tagesuebersicht", tage_pages, {
         "Person", "Datum", "Tag", "Kalorien (kcal)", "Protein (g)",
         "Kohlenhydrate (g)", "Fett (g)", "Kalorienziel (kcal)",
-        "Gewicht (kg)", "Zielgewicht"})
+        "Gewicht (kg)", "Zielgewicht",
+        "Ziel", "Notizen", "Kalorienverbrauch", "Bauch", "Stuhlgang", "Symptome",
+        "Differenz", "Kaloriendefizit", "Ziel erreicht", "Ziel nicht erreicht"})
     report_properties("Lebensmittel-Analyse", analyse_pages,
                       {"Person", "Datum", "Lebensmittel", "Duplikat",
-                       "Kalorien (kcal)"} | set(NUTRIENT_COLUMNS) | set(CATEGORY_COLUMNS))
+                       "Kalorien (kcal)", "Eiweiß (g)", "Fett (g)",
+                       "Kohlenhydrate (g)", "Zucker (g)"}
+                      | set(NUTRIENT_COLUMNS) | set(CATEGORY_COLUMNS))
 
     tage_rows, tage_skipped = build_tage_rows(tage_pages)
     analyse_rows, analyse_skipped = build_analyse_rows(analyse_pages)

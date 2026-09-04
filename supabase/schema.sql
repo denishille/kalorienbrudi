@@ -1,6 +1,11 @@
 -- Kalorienbrudi: Schema fuer den Umzug von Notion nach Supabase.
--- Im Supabase-SQL-Editor des Projekts ausfuehren. Mehrfaches Ausfuehren ist
--- unschaedlich (IF NOT EXISTS).
+-- Ueber den Workflow "Supabase-Migration ausfuehren" laufen lassen.
+-- Mehrfaches Ausfuehren ist unschaedlich (IF NOT EXISTS).
+--
+-- Achtung: "create table if not exists" ergaenzt KEINE Spalten an bestehenden
+-- Tabellen. Diese Datei ist der Stand fuer eine leere Datenbank; nachtraegliche
+-- Aenderungen liegen als eigene Migration daneben (002_fehlende_felder.sql)
+-- und muessen dort UND hier stehen.
 --
 -- Schluessel-Entwurf: eine eigene UUID ist der Primaerschluessel, die
 -- Notion-Seiten-ID steht daneben und ist eindeutig. Damit ist der Sync ein
@@ -25,6 +30,14 @@ create table if not exists public.tagesuebersicht (
   kalorienziel_kcal numeric,
   gewicht_kg        numeric,
   zielgewicht       numeric,
+
+  ziel                   text,     -- Tagesziel, in Notion ein select
+  notizen                text,
+  kalorienverbrauch_kcal numeric,  -- durch Sport verbraucht
+  bauch                  text,
+  stuhlgang              text,
+  symptome               text,
+
   aktualisiert_am   timestamptz not null default now()
 );
 
@@ -42,6 +55,13 @@ create table if not exists public.lebensmittel_analyse (
   lebensmittel    text,
   duplikat        boolean not null default false,
   kalorien_kcal   numeric,
+
+  -- Makros je Eintrag. "Eiweiss" heisst in Notion so, in der Tagestabelle
+  -- "Protein" - die Namen bleiben wie in der Quelle.
+  eiweiss_g       numeric,
+  fett_g          numeric,
+  kohlenhydrate_g numeric,
+  zucker_g        numeric,
 
   ballaststoffe_g numeric,
   calcium_mg      numeric,
