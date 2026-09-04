@@ -205,7 +205,10 @@ def report_properties(label, pages, bekannt):
             typ = (prop or {}).get("type", "?")
             eintrag = gefunden.setdefault(name, {"typ": typ, "befuellt": 0})
             wert = (prop or {}).get(typ)
-            if wert not in (None, "", [], False):
+            # Nicht "if wert:" und nicht "not in (..., False)": eine 0 ist ein
+            # eingetragener Wert, in Python aber gleich False - so gezaehlt
+            # meldete der Bericht Luecken, die es nicht gibt.
+            if wert is not None and wert != "" and wert != []:
                 eintrag["befuellt"] += 1
     print("\n--- %s: %d Felder ---" % (label, len(gefunden)))
     for name in sorted(gefunden):
