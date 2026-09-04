@@ -2,10 +2,14 @@
 -- Ueber den Workflow "Supabase-Migration ausfuehren" laufen lassen.
 -- Mehrfaches Ausfuehren ist unschaedlich (IF NOT EXISTS).
 --
+-- Die Datenbank teilt sich das Projekt mit Malena Cosmetics (public.termine).
+-- Alles hier gehoert zu Kalorienbrudi; wer die Tabellenliste aufmacht, sieht
+-- die Zuordnung an den Beschreibungen aus 004_aufraeumen.sql.
+--
 -- Achtung: "create table if not exists" ergaenzt KEINE Spalten an bestehenden
--- Tabellen. Diese Datei ist der Stand fuer eine leere Datenbank; nachtraegliche
--- Aenderungen liegen als eigene Migration daneben (002_fehlende_felder.sql)
--- und muessen dort UND hier stehen.
+-- Tabellen. Diese Datei ist der Stand fuer eine LEERE Datenbank. Aenderungen
+-- danach liegen als eigene, durchnummerierte Migration daneben und muessen an
+-- BEIDEN Stellen stehen: in der Migration und hier.
 --
 -- Schluessel-Entwurf: eine eigene UUID ist der Primaerschluessel, die
 -- Notion-Seiten-ID steht daneben und ist eindeutig. Damit ist der Sync ein

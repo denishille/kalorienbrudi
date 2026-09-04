@@ -15,9 +15,9 @@ on:
   workflow_dispatch:
     inputs:
       datei:
-        description: "SQL-Datei unterhalb von supabase/"
+        description: "SQL-Datei aus supabase/ (z. B. 004_aufraeumen.sql oder pruefung.sql)"
         required: true
-        default: "schema.sql"
+        default: "pruefung.sql"
         type: string
 
 permissions:
