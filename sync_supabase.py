@@ -177,6 +177,30 @@ def build_analyse_rows(pages):
     return rows, skipped
 
 
+def report_properties(label, pages, bekannt):
+    """Zeigt, welche Notion-Felder es gibt und welche davon NICHT gespiegelt
+    werden. Das Schema wurde aus dem abgeleitet, was das Dashboard liest -
+    nicht aus dem, was Notion haelt. Alles Unbekannte hier ist ein Feld, das
+    beim Umzug verloren gehen wuerde."""
+    gefunden = {}
+    for pg in pages:
+        for name, prop in (pg.get("properties") or {}).items():
+            typ = (prop or {}).get("type", "?")
+            eintrag = gefunden.setdefault(name, {"typ": typ, "befuellt": 0})
+            wert = (prop or {}).get(typ)
+            if wert not in (None, "", [], False):
+                eintrag["befuellt"] += 1
+    print("\n--- %s: %d Felder ---" % (label, len(gefunden)))
+    for name in sorted(gefunden):
+        e = gefunden[name]
+        markierung = "   " if name in bekannt else ">> "
+        print("%s%-34s %-12s %5d befuellt" % (markierung, name, e["typ"], e["befuellt"]))
+    fehlend = [n for n in gefunden if n not in bekannt and gefunden[n]["befuellt"]]
+    if fehlend:
+        print("   NICHT gespiegelt (mit Werten): %s" % ", ".join(sorted(fehlend)))
+    return fehlend
+
+
 def main():
     missing = [n for n, v in (("NOTION_TOKEN", NOTION_TOKEN),
                               ("SUPABASE_URL", SUPABASE_URL),
@@ -189,6 +213,15 @@ def main():
     tage_pages = notion_query_all(DATA_SOURCE_KCAL)
     analyse_pages = notion_query_all(DATA_SOURCE_NUTRI)
     print("  %d Tageszeilen, %d Analysezeilen" % (len(tage_pages), len(analyse_pages)))
+
+    # Bestandsaufnahme, bevor die Eingabe umzieht: was haelt Notion wirklich?
+    report_properties("Tagesuebersicht", tage_pages, {
+        "Person", "Datum", "Tag", "Kalorien (kcal)", "Protein (g)",
+        "Kohlenhydrate (g)", "Fett (g)", "Kalorienziel (kcal)",
+        "Gewicht (kg)", "Zielgewicht"})
+    report_properties("Lebensmittel-Analyse", analyse_pages,
+                      {"Person", "Datum", "Lebensmittel", "Duplikat",
+                       "Kalorien (kcal)"} | set(NUTRIENT_COLUMNS) | set(CATEGORY_COLUMNS))
 
     tage_rows, tage_skipped = build_tage_rows(tage_pages)
     analyse_rows, analyse_skipped = build_analyse_rows(analyse_pages)
