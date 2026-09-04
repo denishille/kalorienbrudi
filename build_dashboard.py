@@ -71,7 +71,7 @@ CAT_KEYS = ["Darmgesundheit", "Low FODMAP", "Säure-Base"]
 
 # Anzeigename -> Spalte. Der Anzeigename traegt die Einheit und steuert
 # Beschriftung und Referenzwerte im Dashboard; die Spalte kommt ohne Klammern
-# und Sonderzeichen aus. sync_supabase.py nutzt dieselbe Zuordnung.
+# und Sonderzeichen aus.
 NUTRIENT_COLUMNS = {
     "Ballaststoffe (g)": "ballaststoffe_g",
     "Calcium (mg)": "calcium_mg",

@@ -1,9 +1,9 @@
 -- Nachtrag: Felder, die Notion haelt, das Schema aber nicht hatte.
 --
 -- Das erste Schema war aus dem abgeleitet, was das Dashboard LIEST. Notion
--- haelt aber mehr - eine Bestandsaufnahme aller Properties (siehe
--- report_properties in sync_supabase.py) hat die Luecke gezeigt. Ohne diese
--- Spalten waeren die Felder beim Umzug der Eingabe dauerhaft weg.
+-- hielt aber mehr - eine Bestandsaufnahme aller Notion-Properties hat die
+-- Luecke gezeigt. Ohne diese Spalten waeren die Felder beim Umzug der
+-- Eingabe dauerhaft weg gewesen.
 --
 -- Bewusst NICHT uebernommen sind die Notion-Formeln "Differenz",
 -- "Kaloriendefizit", "Ziel erreicht" und "Ziel nicht erreicht": sie sind

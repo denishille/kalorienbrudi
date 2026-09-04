@@ -8,8 +8,6 @@ die auf Cloudflare Pages liegt. Kein Server, keine Datenbank im Browser.
 
 ```
 Chat (/brudi-Skill)  ──►  Supabase  ──►  build_dashboard.py  ──►  Cloudflare Pages
-                            ▲
-                            └── sync_supabase.py (Notion, Übergang)
 ```
 
 Eingetragen wird im Chat über den `/brudi`-Skill, der direkt nach Supabase
@@ -18,10 +16,11 @@ täglich (13:00 und 19:00 UTC), damit die Zahlen auch ohne Code-Änderung frisch
 bleiben. Deshalb liegt der Build in Actions und nicht in der Git-Anbindung von
 Cloudflare Pages — die kennt keine geplanten Builds.
 
-`sync_supabase.py` ist der Rest des Umzugs von Notion und die einzige
-verbliebene Notion-Abhängigkeit. Sobald die Eingabe vollständig über Supabase
-läuft, können die Datei, `supabase-sync.yml` und das Secret `NOTION_TOKEN`
-ersatzlos weg.
+Notion ist raus. Die Daten kamen ursprünglich von dort und wurden eine Zeit
+lang gespiegelt; seit die Eingabe direkt nach Supabase schreibt, ist die
+Spiegelung entfallen. Die Spalte `notion_id` bleibt vorerst: sie hält fest,
+welche Zeile aus dem alten Bestand stammt, und ist der Faden zurück, solange
+die Notion-Datenbanken noch existieren. Sind die gelöscht, kann sie weg.
 
 ## Die Datenbank
 
@@ -81,18 +80,16 @@ in `001_schema.sql` stehen.
 
 | Secret | Wofür |
 |---|---|
-| `SUPABASE_URL` | Build und Sync |
-| `SUPABASE_SERVICE_KEY` | Build und Sync (umgeht RLS) |
+| `SUPABASE_URL` | Build |
+| `SUPABASE_SERVICE_KEY` | Build (umgeht RLS) |
 | `SUPABASE_DB_URL` | nur Migrationen (Direktverbindung/Session Pooler, Port 5432) |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Veröffentlichen |
-| `NOTION_TOKEN` | nur noch für `sync_supabase.py` |
 
 ## Dateien
 
 | Datei | Zweck |
 |---|---|
 | `build_dashboard.py` | liest Supabase, schreibt `index.html` (stdlib only) |
-| `sync_supabase.py` | spiegelt Notion nach Supabase (Übergang) |
 | `skills/brudi/SKILL.md` | der Eingabe-Skill; liegt hier, weil er zum Schema gehört |
 | `supabase/` | Schema, Migrationen, Prüfung |
 
