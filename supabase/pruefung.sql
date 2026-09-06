@@ -38,3 +38,21 @@ select person, datum, tag, kalorien_kcal, gewicht_kg, ziel,
 from (select *, row_number() over (partition by person order by datum desc) as r
       from public.tagesuebersicht) t
 where r <= 3 order by person, datum desc;
+
+\echo '--- Offene Nachtraege: Zeilen mit Makros, aber ohne Mikronaehrstoffe ---'
+-- Der Eingabe-Skill schreibt in zwei Zuegen: erst Kalorien und Makros, damit
+-- die Antwort sofort dasteht, danach die Mikronaehrstoffe. Bricht der zweite
+-- Zug ab, bleibt eine halbe Zeile stehen. Der Skill holt Nachzuegler der
+-- letzten 14 Tage selbst nach - was hier auftaucht, ist aelter und braucht
+-- einen Anstoss von Hand.
+--
+-- Zwei Gruppen sind ausgenommen, weil sie hier nur Rauschen waeren:
+-- die Ausgleichszeilen (tragen absichtlich keine Kategorien) und Zeilen aus
+-- dem Notion-Altbestand (33 Stueck, Mai bis Juli 2026) - die hatten schon
+-- dort keine Kategorien und stammen nicht aus dem zweistufigen Verfahren.
+select person, datum, lebensmittel, kalorien_kcal
+from public.lebensmittel_analyse
+where darmgesundheit is null
+  and notion_id is null
+  and lebensmittel not like 'Ausgleich Schätzdifferenz%'
+order by datum desc, person, lebensmittel;

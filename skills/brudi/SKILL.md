@@ -262,21 +262,98 @@ Nachgefragt wird ausschließlich noch bei: unklarer **Tageszuordnung**
 (Regel 1, Punkt 3) und wenn ein genanntes Lebensmittel gar nicht
 identifizierbar ist (z. B. unverständliche Spracheingabe) – nie bei Mengen.
 
-## Workflow bei neuen Mahlzeiten
+## Workflow bei neuen Mahlzeiten – in ZWEI Zügen
+
+Das Schätzen der gut zwanzig Mikronährstoffe je Lebensmittel dauert länger als
+alles andere zusammen. Es kommt deshalb **nach** der Antwort, nicht davor: was
+interessiert (Kalorien, Makroverteilung, Ampel), steht sofort da, der Rest
+läuft still nach. Beide Züge gehören zum selben Durchgang – Zug 2 wird nicht
+auf später vertagt und nicht angekündigt und dann vergessen.
+
+### Zug 1 – bis zur Antwort
 
 1. Datum prüfen (Regel 1).
-2. Mengen schätzen (Regel 7), dann Kalorien & Makros schätzen (gleiche
-   Lebensmittel wie an Vortagen = gleiche Werte).
-3. Kompakte Tabelle im Chat.
-4. Bestehende Analyse-Zeilen des Tages lesen (Regel 5), neue per Sammel-
-   `insert` ergänzen (Regeln 3-5). Pflicht je Zeile: `person`, `datum`,
-   `lebensmittel`, `kalorien_kcal`, `eiweiss_g`, `kohlenhydrate_g`, `fett_g`;
-   dazu die Mikronährstoffe und die drei Kategorien schätzen.
+2. Mengen schätzen (Regel 7), dann **nur** Kalorien und die drei Makros
+   (Eiweiß, Kohlenhydrate, Fett). Gleiche Lebensmittel wie an Vortagen =
+   gleiche Werte.
+3. Bestehende Analyse-Zeilen des Tages lesen (Regel 5) – in derselben Query
+   gleich die Nachzügler aus abgebrochenen Durchgängen mitnehmen, das spart
+   einen Aufruf:
+
+   ```sql
+   select id, datum, lebensmittel, kalorien_kcal,
+          (darmgesundheit is null) as nachtrag_offen
+   from public.lebensmittel_analyse
+   where person = 'Denis'
+     and (datum = date '2026-09-06'
+          or (datum > current_date - 14
+              and darmgesundheit is null
+              and lebensmittel not like 'Ausgleich Schätzdifferenz%'))
+   order by datum desc, lebensmittel;
+   ```
+
+   Was mit `nachtrag_offen` zurückkommt, wird in Zug 2 mitversorgt.
+4. Neue Zeilen per **einem** Sammel-`insert` anlegen – Pflichtfelder und sonst
+   nichts. Das `returning` liefert die `id`s, die Zug 2 braucht:
+
+   ```sql
+   insert into public.lebensmittel_analyse
+     (person, datum, lebensmittel, kalorien_kcal, eiweiss_g, kohlenhydrate_g, fett_g)
+   values
+     ('Denis', date '2026-09-06', 'Skyr 0,2% (150g)', 97, 17, 6, 0.3),
+     ('Denis', date '2026-09-06', 'Blaubeeren (80g)', 46, 0.6, 9.8, 0.3)
+   returning id, lebensmittel;
+   ```
+
 5. Tagesübersicht per Upsert fortschreiben (Regel 2).
 6. Summen-Abgleich (Regel 6).
+7. **Antworten** – Tabelle, Summe, Ampel (siehe Antwort-Format).
 
 Schritt 4 vor Schritt 5, damit die Tagessumme aus dem tatsächlich
 geschriebenen Stand entsteht.
+
+### Zug 2 – nach der Antwort, still
+
+8. Mikronährstoffe und die drei Kategorien für **genau die `id`s aus Schritt 4**
+   nachtragen. Ein `update` für alle Zeilen, nicht eines pro Zeile:
+
+   ```sql
+   update public.lebensmittel_analyse t set
+     zucker_g = v.zucker, ballaststoffe_g = v.ballast, cholesterin_mg = v.chol,
+     omega3_g = v.omega3, calcium_mg = v.calcium, eisen_mg = v.eisen,
+     folat_ug = v.folat, jod_ug = v.jod, kalium_mg = v.kalium,
+     magnesium_mg = v.magnesium, selen_ug = v.selen, zink_mg = v.zink,
+     vitamin_a_ug = v.vit_a, vitamin_b12_ug = v.vit_b12, vitamin_c_mg = v.vit_c,
+     vitamin_d_ug = v.vit_d, vitamin_e_mg = v.vit_e, vitamin_k_ug = v.vit_k,
+     darmgesundheit = v.darm, low_fodmap = v.fodmap, saeure_base = v.saeure
+   from (values
+     ('<id-1>'::uuid, 4.0, 0.0, 8, 0.0, 180, 0.1, 12, 9, 230, 15, 5, 0.6,
+      2, 0.8, 1, 0.1, 0.1, 0.2, 'gut', 'gut', 'neutral'),
+     ('<id-2>'::uuid, 8.0, 1.9, 0, 0.1,   5, 0.2, 5, 1,  62,  5, 0, 0.1,
+      2, 0.0, 8, 0.0, 0.4, 15.6, 'gut', 'gut', 'gut')
+   ) as v(id, zucker, ballast, chol, omega3, calcium, eisen, folat, jod, kalium,
+          magnesium, selen, zink, vit_a, vit_b12, vit_c, vit_d, vit_e, vit_k,
+          darm, fodmap, saeure)
+   where t.id = v.id;
+   ```
+
+9. Ein Satz zum Abschluss, mehr nicht: "Nährstoffe ergänzt."
+
+### Wenn Zug 2 ausfällt
+
+Bricht der Durchgang zwischen den Zügen ab, bleiben Zeilen mit Kalorien und
+Makros zurück, denen die Mikronährstoffe fehlen. Die Teilung kauft
+Geschwindigkeit gegen dieses Risiko – deshalb holt Schritt 3 die Nachzügler
+der letzten 14 Tage jedes Mal mit ein, und Zug 2 versorgt sie zusammen mit den
+neuen Zeilen. Ein verpasster Nachtrag heilt damit beim nächsten Eintrag von
+selbst.
+
+`darmgesundheit` ist der Marker: in Zug 1 nie gesetzt, in Zug 2 immer. Die
+Ausgleichszeilen aus Regel 6 tragen absichtlich keine Kategorien und sind
+deshalb ausgenommen.
+
+Fällt beim Nachtragen auf, dass eine Zeile älter als 14 Tage ist und noch
+offen: `pruefung.sql` im Repo zeigt offene Nachträge ohne Zeitgrenze.
 
 ## Tageszuordnung & Korrekturen
 
@@ -291,10 +368,18 @@ Tageszuordnung, nie zu Mengen (Regel 7).
 
 ## Antwort-Format
 
-Heutiges Datum oben. Kompakte Tabelle (Positionen + Summe), Ampel
+Die Antwort kommt in zwei Teilen, passend zu den zwei Zügen.
+
+**Nach Zug 1** – das ist die eigentliche Antwort: heutiges Datum oben,
+kompakte Tabelle (Positionen mit kcal und den drei Makros + Summe), Ampel
 (🟢 Denis ≤1995 / Leni ≤~1575 · 🟡 · 🔴), knapper Kommentar ohne
-Moralisieren. Nährstoff-Zeilen laufen still mit – nur kurze Bestätigung.
-Geschätzte Mengen mit `~` markieren + Einzeiler am Ende (Regel 7).
+Moralisieren. Geschätzte Mengen mit `~` markieren + Einzeiler am Ende
+(Regel 7). Zum Schluss ein Halbsatz, dass die Nährstoffe noch nachlaufen.
+
+**Nach Zug 2** – eine Zeile, mehr nicht: "Nährstoffe ergänzt."
+
+Der Sinn der Teilung: die Tabelle steht sofort da. Nicht erst alles rechnen
+und dann in einem Block antworten – dann wartet man auf das Uninteressante.
 
 Das Dashboard aktualisiert sich nicht sofort: es wird zweimal täglich neu
 gebaut (13:00 und 19:00 UTC). Frisch Eingetragenes ist dort also erst beim
